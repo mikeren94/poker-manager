@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('player_id')->constrained()->onDelete('cascade');
             $table->foreignId('site_id')->constrained()->onDelete('cascade');
+            $table->string('session_id')->nullable();
             $table->enum('type', ['cash', 'tournament']);
             $table->string('stakes')->nullable();
             $table->timestamp('start_time')->nullable();

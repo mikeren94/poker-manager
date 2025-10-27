@@ -6,9 +6,33 @@ use App\Models\Hand;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreHandRequest;
 use App\Http\Requests\UpdateHandRequest;
+use App\Jobs\ParseHandHistory;
+use Illuminate\Http\Request;
 
 class HandController extends Controller
 {
+    /**
+     * Handle the hand history upload
+     */
+    public function upload(Request $request)
+    {
+        $request->validate([
+            'hand_history' => 'required|file|mimes:txt|max:2048'
+        ]);
+
+        $file = $request->file('hand_history');
+        $filename = uniqid('hand_') . '.' . $file->getClientOriginalExtension();
+        $path = $file->storeAs('hand_histories', $filename);
+
+        // Dispatch the job
+        ParseHandHistory::dispatch($path);
+        
+        return response()->json([
+            'message' => 'Upload successful',
+            'filename' => $filename,
+            'path' => $path
+        ]);
+    }
     /**
      * Display a listing of the resource.
      */
