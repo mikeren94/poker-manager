@@ -15,9 +15,6 @@ return new class extends Migration
             $table->id();
             $table->string('rank'); // e.g. "A", "K", "7"
             $table->string('suit'); // e.g. "h", "d", "c", "s"
-            $table->enum('context', ['hole', 'flop','turn','river'])->default('hole');
-            $table->foreignId('hand_id')->constrained()->onDelete('cascade');
-            $table->foreignId('player_id')->nullable()->constrained()->onDelete('cascade'); // null for board cards
             $table->timestamps();
         });
     }

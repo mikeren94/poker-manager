@@ -10,6 +10,8 @@ services:
       - ./storage:/var/www/html/storage
     depends_on:
       - db
+    environment:
+      QUEUE_CONNECTION: database
 
   db:
     image: mysql:8.0
@@ -18,3 +20,15 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: testdb
+
+  worker:
+    build: .
+    volumes:
+      - .:/var/www/html
+      - ./storage:/var/www/html/storage
+      - ./.env:/var/www/html/.env
+    depends_on:
+      - db
+    command: >
+      sh -c "wait-for-it db:3307 -- php artisan queue:work --sleep=3 --tries=3"    environment:
+      QUEUE_CONNECTION: database

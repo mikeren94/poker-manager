@@ -9,4 +9,14 @@ class HandPlayer extends Model
 {
     /** @use HasFactory<\Database\Factories\HandPlayerFactory> */
     use HasFactory;
+
+    protected $fillable = [
+        'hand_id',
+        'player_id',
+        'position',
+        'action',
+        'result',
+        'is_hero',
+        'is_winner'
+    ];
 }

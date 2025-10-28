@@ -5,13 +5,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Card extends Model
+class HandCard extends Model
 {
-    /** @use HasFactory<\Database\Factories\CardFactory> */
+    /** @use HasFactory<\Database\Factories\HandCardFactory> */
     use HasFactory;
 
     protected $fillable = [
-        'rank',
-        'suit'
+        'context',
+        'card_id',
+        'hand_id',
+        'player_id'
     ];
 }
