@@ -17,20 +17,23 @@ use App\Models\HandAction;
 use App\Models\HandCard;
 use App\Models\Card;
 use App\Models\HandPlayer;
+use App\Models\User;
 
 class ParseHandHistory implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected string $path;
+    protected User $user;
     protected string $gameType = 'tournament';
     protected $session;
     protected $heroPlayer;
     protected $site;
 
-    public function __construct(string $path)
+    public function __construct(string $path, User $user)
     {
         $this->path = $path;
+        $this->user = $user;
     }
 
     public function handle(): void
@@ -59,10 +62,12 @@ class ParseHandHistory implements ShouldQueue
         $heroName = $this->extractHeroName($handText);
         $timestamp = $this->extractTimestamp($handText);
 
-        if (!$this->heroPlayer) {
+        if (is_null($this->heroPlayer)) {
+
             $this->heroPlayer = Player::firstOrCreate([
                 'name' => $heroName,
                 'site_id' => $this->site->id,
+                'user_id' => $this->user->id
             ]);
         }
 

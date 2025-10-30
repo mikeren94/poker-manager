@@ -10,5 +10,5 @@ class Player extends Model
     /** @use HasFactory<\Database\Factories\PlayerFactory> */
     use HasFactory;
 
-    protected $fillable = ['name', 'site_id'];
+    protected $fillable = ['name', 'site_id', 'user_id'];
 }

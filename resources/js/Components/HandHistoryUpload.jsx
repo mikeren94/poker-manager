@@ -20,8 +20,9 @@ function HandHistoryUpload() {
         formData.append('hand_history', file);
 
         try {
-            await axios.post('/api/hands/upload', formData, {
+            await axios.post('/hands/upload', formData, {
                 headers: {'Content-Type': 'multipart/form-data'},
+                withCredentials: true
             });
             setResponse({
                 success: true,

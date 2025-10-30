@@ -8,6 +8,7 @@ use App\Http\Requests\StoreHandRequest;
 use App\Http\Requests\UpdateHandRequest;
 use App\Jobs\ParseHandHistory;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class HandController extends Controller
 {
@@ -25,7 +26,7 @@ class HandController extends Controller
         $path = $file->storeAs('hand_histories', $filename);
 
         // Dispatch the job
-        ParseHandHistory::dispatch($path);
+        ParseHandHistory::dispatch($path, Auth::user());
         
         return response()->json([
             'message' => 'Upload successful',
@@ -36,9 +37,9 @@ class HandController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        //
+        $user = Auth::user();
     }
 
     /**
