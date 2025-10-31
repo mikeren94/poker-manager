@@ -18,4 +18,14 @@ class Hand extends Model
         'rake',
         'showdown'
     ];
+
+    public function session()
+    {
+        return $this->belongsTo(Session::class, 'game_session_id');
+    }
+
+    public function hand_players()
+    {
+        return $this->hasMany(HandPlayer::class);
+    }
 }

@@ -6,8 +6,9 @@ function HandHistoryList() {
 
     const getHandHistories = async () => {
         try {
-            const response = await axios.get('/api/hands')
-            console.log(response.data);
+            const response = await axios.get('/hands')
+            setHandHistories(response.data);
+            console.log(handHistories);
         } catch (error) {
             console.log(error)
         }
@@ -19,7 +20,11 @@ function HandHistoryList() {
     return (
         <div>
             {handHistories.length > 0 ? (
-                <p>List histories</p>
+                <ul>
+                    {handHistories.map((history, index) => (
+                       <li key={index}>{history.hand_players[0].result}</li> 
+                    ))}
+                </ul>
             ) : (
                 <p>No Hand histories found</p>
             )}

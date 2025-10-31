@@ -24,6 +24,7 @@ Route::get('/upload', function() {
 })->middleware(['auth', 'verified'])->name('upload');
 
 Route::post('/hands/upload', [HandController::class, 'upload'])->middleware('auth');
+Route::get('/hands', [HandController::class, 'index'])->middleware('auth');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

@@ -19,4 +19,9 @@ class HandPlayer extends Model
         'is_hero',
         'is_winner'
     ];
+
+    public function player()
+    {
+        return $this->belongsTo(Player::class);
+    }
 }

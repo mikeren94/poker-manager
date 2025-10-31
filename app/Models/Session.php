@@ -23,4 +23,19 @@ class Session extends Model
         'cash_out',
         'net_profit'
     ];
+
+    public function player()
+    {
+        return $this->belongsTo(Player::class);
+    }
+
+    public function hands()
+    {
+        return $this->hasMany(Hand::class);
+    }
+
+    public function site()
+    {
+        return $this->belongsTo(Site::class);
+    }
 }

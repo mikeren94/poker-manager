@@ -40,6 +40,20 @@ class HandController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
+
+        $hands = Hand::whereHas('session.player', function ($query) use ($user) {
+            $query->where('user_id', $user->id);
+        })->with([
+            'session.player',
+            'session.site',
+            'hand_players' => function ($query) use ($user) {
+                $query->whereHas('player', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                });
+            }
+        ])->get();
+    
+        return response()->json($hands);
     }
 
     /**

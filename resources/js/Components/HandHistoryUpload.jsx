@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import ResponseMessage from "./ResponseMessage";
 import LoadingSpinner from "./LoadingSpinner";
 
 function HandHistoryUpload() {
     const [file, setFile] = useState(null);
+    const fileInputRef = useRef(null);
     const [loading, setLoading] = useState(false);
     const [response, setResponse] = useState({
         success: null,
@@ -42,12 +43,14 @@ function HandHistoryUpload() {
             }
         } finally {
             setLoading(false);
+            setFile(null);
+            fileInputRef.current.value = '';
         }
     }
     return (
         <form onSubmit={handleSubmit}>
             <ResponseMessage response={response} />
-            <input type="file" accept=".txt" onChange={handleFileChange} />
+            <input type="file" accept=".txt" onChange={handleFileChange} ref={fileInputRef} />
             <button 
                 className="btn btn-blue" 
                 type="submit"
