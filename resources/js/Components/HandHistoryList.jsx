@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import HandHistoryItem from "./HandHistoryItem";
 
 function HandHistoryList() {
     const [handHistories, setHandHistories] = useState([]);
@@ -16,13 +17,15 @@ function HandHistoryList() {
 
     useEffect(() => {
         getHandHistories();
-    })
+    }, []);
     return (
         <div>
             {handHistories.length > 0 ? (
                 <ul>
                     {handHistories.map((history, index) => (
-                       <li key={index}>{history.hand_players[0].result}</li> 
+                       <li key={index} className="row-container">
+                            <HandHistoryItem historyItem={history} />
+                        </li> 
                     ))}
                 </ul>
             ) : (

@@ -50,8 +50,14 @@ class HandController extends Controller
                 $query->whereHas('player', function ($q) use ($user) {
                     $q->where('user_id', $user->id);
                 });
+            },
+            'hand_cards' => function ($query) use ($user) {
+                $query->whereHas('player', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                })->with('card');
             }
         ])->get();
+
     
         return response()->json($hands);
     }

@@ -28,4 +28,9 @@ class Hand extends Model
     {
         return $this->hasMany(HandPlayer::class);
     }
+
+    public function hand_cards()
+    {
+        return $this->hasMany(HandCard::class);
+    }
 }

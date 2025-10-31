@@ -16,4 +16,14 @@ class HandCard extends Model
         'hand_id',
         'player_id'
     ];
+
+    public function player()
+    {
+        return $this->belongsTo(Player::class);
+    }
+
+    public function card()
+    {
+        return $this->belongsTo(Card::class);
+    }
 }
