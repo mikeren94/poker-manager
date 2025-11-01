@@ -52,10 +52,17 @@ class HandController extends Controller
                 });
             },
             'hand_cards' => function ($query) use ($user) {
-                $query->whereHas('player', function ($q) use ($user) {
-                    $q->where('user_id', $user->id);
-                })->with('card');
-            }
+            $query->where(function ($q) use ($user) {
+                $q->whereHas('player', function ($sub) use ($user) {
+                    $sub->where('user_id', $user->id);
+                })
+                ->orWhere(function ($sub) {
+                    $sub->whereNull('player_id')
+                        ->whereIn('context', ['flop', 'turn', 'river']);
+                });
+        })->with('card');
+    }
+
         ])->get();
 
     
