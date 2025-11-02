@@ -23,6 +23,7 @@ Route::get('/upload', function() {
     return Inertia::render('UploadHistory');
 })->middleware(['auth', 'verified'])->name('upload');
 
+Route::get('/hands/{hand}', [HandController::class, 'show'])->middleware(['auth', 'verified'])->name('hands.show');
 Route::post('/hands/upload', [HandController::class, 'upload'])->middleware('auth');
 Route::get('/hands', [HandController::class, 'index'])->middleware('auth');
 

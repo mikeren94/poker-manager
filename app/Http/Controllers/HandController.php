@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateHandRequest;
 use App\Jobs\ParseHandHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class HandController extends Controller
 {
@@ -52,17 +53,16 @@ class HandController extends Controller
                 });
             },
             'hand_cards' => function ($query) use ($user) {
-            $query->where(function ($q) use ($user) {
-                $q->whereHas('player', function ($sub) use ($user) {
-                    $sub->where('user_id', $user->id);
-                })
-                ->orWhere(function ($sub) {
-                    $sub->whereNull('player_id')
-                        ->whereIn('context', ['flop', 'turn', 'river']);
-                });
-        })->with('card');
-    }
-
+                $query->where(function ($q) use ($user) {
+                    $q->whereHas('player', function ($sub) use ($user) {
+                        $sub->where('user_id', $user->id);
+                    })
+                    ->orWhere(function ($sub) {
+                        $sub->whereNull('player_id')
+                            ->whereIn('context', ['flop', 'turn', 'river']);
+                    });
+                })->with('card');
+            }
         ])->get();
 
     
@@ -90,7 +90,16 @@ class HandController extends Controller
      */
     public function show(Hand $hand)
     {
-        //
+        $hand->load([
+            'session.player',
+            'session.site',
+            'hand_players.player',
+            'hand_cards.card',
+        ]);
+
+        return Inertia::render('Hand', [
+            'hand' => $hand,
+        ]);
     }
 
     /**

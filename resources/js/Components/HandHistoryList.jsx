@@ -9,7 +9,6 @@ function HandHistoryList() {
         try {
             const response = await axios.get('/hands')
             setHandHistories(response.data);
-            console.log(handHistories);
         } catch (error) {
             console.log(error)
         }
@@ -21,13 +20,23 @@ function HandHistoryList() {
     return (
         <div>
             {handHistories.length > 0 ? (
-                <ul>
-                    {handHistories.map((history, index) => (
-                       <li key={index} className="row-container">
-                            <HandHistoryItem historyItem={history} />
-                        </li> 
-                    ))}
-                </ul>
+                <table className="table-auto w-full">
+                    <thead>
+                        <tr>
+                            <td>Hand</td>
+                            <td>Result</td>
+                            <td>Flop</td>
+                            <td>Turn</td>
+                            <td>River</td>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {handHistories.map((history, index) => (
+                            <HandHistoryItem key={index} historyItem={history} />
+                        ))}         
+                    </tbody>
+
+                </table>
             ) : (
                 <p>No Hand histories found</p>
             )}
