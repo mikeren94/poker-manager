@@ -95,6 +95,7 @@ class HandController extends Controller
             'session.site',
             'hand_players.player',
             'hand_cards.card',
+            'hand_actions'
         ]);
 
         return Inertia::render('Hand', [

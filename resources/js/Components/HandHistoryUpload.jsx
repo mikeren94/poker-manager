@@ -56,7 +56,7 @@ function HandHistoryUpload() {
                 type="submit"
                 disabled={loading}
             >{loading ? 'Uploading...' : 'Upload'}</button>
-            {loading && <LoadingSpinner />}
+            {loading && <LoadingSpinner message="Uploading..." />}
         </form>
     )
 }

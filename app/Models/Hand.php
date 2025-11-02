@@ -33,4 +33,12 @@ class Hand extends Model
     {
         return $this->hasMany(HandCard::class);
     }
+
+    public function hand_actions()
+    {
+        return $this->hasMany(HandAction::class)
+            ->orderBy('street')
+            ->orderBy('action_order');
+
+    }
 }

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import HandHistoryItem from "./HandHistoryItem";
-
+import LoadingSpinner from "./LoadingSpinner";
 function HandHistoryList() {
     const [handHistories, setHandHistories] = useState([]);
-
+    const [loading, setLoading] = useState(true);
 
     const getHandHistories = async () => {
         try {
@@ -11,6 +11,8 @@ function HandHistoryList() {
             setHandHistories(response.data);
         } catch (error) {
             console.log(error)
+        } finally {
+            setLoading(false);
         }
     }
 
@@ -19,7 +21,9 @@ function HandHistoryList() {
     }, []);
     return (
         <div>
-            {handHistories.length > 0 ? (
+            {loading ? (
+                <LoadingSpinner message="loading..." />
+            ) : handHistories.length > 0 ? (
                 <table className="table-auto w-full">
                     <thead>
                         <tr>
