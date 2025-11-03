@@ -19,7 +19,7 @@ class DashboardController extends Controller
         $playerIds = $user->players()->pluck('id');
 
         $profit = HandPlayer::whereIn('player_id', $playerIds)->sum('result');
-        $vpip = 0;
+        $vpip = $user->vpip;
         $rakePaid = 0;
         $handsPlayed = HandPlayer::whereIn('player_id', $playerIds)->count();
 

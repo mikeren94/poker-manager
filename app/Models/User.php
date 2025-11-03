@@ -12,6 +12,8 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
+    protected $appends = ['vpip'];
+
     /**
      * The attributes that are mass assignable.
      *
@@ -46,13 +48,25 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Get the players associated with the user.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
     public function players()
     {
         return $this->hasMany(Player::class);
     }
+
+    public function getVpipAttribute(): float
+    {
+        return $this->getVpip();
+    }
+
+    private function getVpip() 
+    {
+        $playerIds = $this->players()->pluck('id');
+        $allActions = HandAction::whereIn('player_id', $playerIds)->get();
+        $vpipActions = $allActions->filter(function ($action) {
+            return $action->street === 0 && in_array($action->action, ['call', 'raise', '3bet']);
+        });
+        $vpipHandCount = $vpipActions->pluck('hand_id')->unique()->count();
+        $totalHandCount = $allActions->pluck('hand_id')->unique()->count();
+        return $totalHandCount > 0 ? round(($vpipHandCount / $totalHandCount) * 100) : 0;
+    }   
 }
