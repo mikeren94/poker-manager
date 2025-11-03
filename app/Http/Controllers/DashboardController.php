@@ -8,6 +8,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 
 use App\Models\HandPlayer;
+use App\Models\User;
 
 class DashboardController extends Controller
 {
@@ -20,7 +21,7 @@ class DashboardController extends Controller
         $profit = HandPlayer::whereIn('player_id', $playerIds)->sum('result');
         $vpip = 0;
         $rakePaid = 0;
-        $handsPlayed = 0;
+        $handsPlayed = HandPlayer::whereIn('player_id', $playerIds)->count();
 
         return Inertia::render('Dashboard', [
             'summary' => [

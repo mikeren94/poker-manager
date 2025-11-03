@@ -46,6 +46,11 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Get the players associated with the user.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function players()
     {
         return $this->hasMany(Player::class);
