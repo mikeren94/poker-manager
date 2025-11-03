@@ -12,7 +12,7 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
-    protected $appends = ['vpip'];
+    protected $appends = ['vpip', 'rakePaid'];
 
     /**
      * The attributes that are mass assignable.
@@ -58,6 +58,11 @@ class User extends Authenticatable
         return $this->getVpip();
     }
 
+    public function getRakePaidAttribute(): float
+    {
+        return $this->getRakePaid();
+    }
+
     private function getVpip() 
     {
         $playerIds = $this->players()->pluck('id');
@@ -69,4 +74,34 @@ class User extends Authenticatable
         $totalHandCount = $allActions->pluck('hand_id')->unique()->count();
         return $totalHandCount > 0 ? round(($vpipHandCount / $totalHandCount) * 100) : 0;
     }   
+
+    private function getRakePaid()
+    {
+        $rakePaid = 0;
+        $playerIds = $this->players()->pluck('id');
+
+        $handIds = HandPlayer::whereIn('player_id', $playerIds)
+            ->pluck('hand_id')
+            ->unique();
+
+        foreach ($handIds as $handId) {
+            $hand = Hand::find($handId);
+            $handRake = $hand->rake;
+
+            $winners = HandPlayer::where('hand_id', $handId)
+                ->where('result', '>', 0)
+                ->get();
+
+            $totalWin = $winners->sum('result');
+
+            foreach ($winners as $winner) {
+                if (in_array($winner->player_id, $playerIds->toArray())) {
+                    $share = $winner->result / $totalWin;
+                    $rakePaid += $handRake * $share;
+                }
+            }
+        }
+
+        return $rakePaid;
+    }
 }

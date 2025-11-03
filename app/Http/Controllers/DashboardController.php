@@ -20,7 +20,7 @@ class DashboardController extends Controller
 
         $profit = HandPlayer::whereIn('player_id', $playerIds)->sum('result');
         $vpip = $user->vpip;
-        $rakePaid = 0;
+        $rakePaid = $user->rakePaid;
         $handsPlayed = HandPlayer::whereIn('player_id', $playerIds)->count();
 
         return Inertia::render('Dashboard', [

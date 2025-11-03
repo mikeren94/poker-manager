@@ -24,7 +24,7 @@ export default function Dashboard({summary}) {
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-2">
                         <ProfitTile amount={summary.profit} />
                         <VpipTile value={summary.vpip} />
-                        <RakeTile />
+                        <RakeTile amount={summary.rake_paid} />
                         <HandsPlayedTile amount={summary.hands_played} />
                         <WinRateTile />
                         <ShowdownWinTile />
