@@ -8,6 +8,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 use App\Models\Session;
 use App\Models\Site;
@@ -38,6 +39,7 @@ class ParseHandHistory implements ShouldQueue
 
     public function handle(): void
     {
+        Log::info("ParseHandHistory job started", ['path' => $this->path, 'user_id' => $this->user->id]);
         $this->handlePokerstarsHistory();
     }
 
@@ -49,10 +51,17 @@ class ParseHandHistory implements ShouldQueue
         $this->site = Site::firstOrCreate(['name' => 'PokerStars']);
 
         foreach ($hands as $handText) {
-            $handText = str_replace("\r\n", "\n", $handText);
-            if (trim($handText) === '') continue;
+            try {
+                $handText = str_replace("\r\n", "\n", $handText);
+                if (trim($handText) === '') continue;
 
-            $this->parseHand($handText);
+                $this->parseHand($handText);
+            } catch (\Throwable $e) {
+                Log::error("Failed to parse hand", [
+                    'handText' => substr($handText, 0, 500),
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
     }
 
@@ -126,14 +135,19 @@ class ParseHandHistory implements ShouldQueue
 
     protected function normalizeAction(string $action): string
     {
-        return match (strtolower($action)) {
-            'calls' => 'call',
-            'bets' => 'bet',
-            'raises' => 'raise',
-            'posts' => 'post',
-            'checks' => 'check',
-            'folds' => 'fold',
-            default => strtolower($action),
+        $action = strtolower(trim($action));
+
+        return match (true) {
+            str_contains($action, 'doesn\'t show') => 'muck',
+            str_contains($action, 'shows') => 'show',
+            str_contains($action, 'mucked') => 'muck',
+            str_contains($action, 'folds') => 'fold',
+            str_contains($action, 'calls') => 'call',
+            str_contains($action, 'bets') => 'bet',
+            str_contains($action, 'raises') => 'raise',
+            str_contains($action, 'checks') => 'check',
+            str_contains($action, 'posts') => 'post',
+            default => $action,
         };
     }
 
@@ -176,7 +190,7 @@ class ParseHandHistory implements ShouldQueue
             if (!empty($streetActions[1])) {
                 $lines = explode("\n", trim($streetActions[1]));
                 foreach ($lines as $i => $line) {
-                    if (preg_match('/^(\w+): (\w+)(?: \$?([\d\.]+))?/', $line, $match)) {
+                    if (preg_match('/^(.+?): ([^\$]+?)(?: \$?([\d\.]+))?$/', $line, $match)) {
                         $playerName = $match[1];
                         $action = $this->normalizeAction($match[2]);
                         $amount = isset($match[3]) ? (float) $match[3] : null;
@@ -202,6 +216,7 @@ class ParseHandHistory implements ShouldQueue
 
     protected function storeHoleCards(string $handText, Hand $hand): void
     {
+        // Hero hole cards
         preg_match('/Dealt to (\w+) \[([^\]]+)\]/', $handText, $match);
         $cards = explode(' ', $match[2] ?? '');
 
@@ -217,26 +232,40 @@ class ParseHandHistory implements ShouldQueue
             ]);
         }
 
-        preg_match_all('/(\w+): (?:shows|mucked) \[([^\]]+)\]/', $handText, $matches, PREG_SET_ORDER);
+        // Other players' shown or mucked cards
+        preg_match_all('/(\w+): (?:shows|mucked) \[([^\]]+)\]/', $handText, $matches1, PREG_SET_ORDER);
+        preg_match_all('/Seat \d+: (\w+).*?mucked \[([^\]]+)\]/', $handText, $matches2, PREG_SET_ORDER);
 
-        foreach ($matches as $match) {
-            $playerName = $match[1];
-            if ($playerName === $this->heroPlayer->name) continue;
+        $rawMatches = array_merge($matches1, $matches2);
+        $filteredMatches = array_filter($rawMatches, fn($m) => count($m) >= 3);
 
-            $player = Player::firstOrCreate([
-                'name' => $playerName,
-                'site_id' => $this->site->id,
-            ]);
+        foreach ($filteredMatches as $match) {
+            try {
+                $playerName = $match[1];
+                $cardString = $match[2];
 
-            foreach (explode(' ', $match[2]) as $foundCard) {
-                $split = str_split($foundCard);
-                $card = $this->getCardFromDb($split);
+                if ($playerName === $this->heroPlayer->name) continue;
 
-                HandCard::firstOrCreate([
-                    'context' => 'hole',
-                    'hand_id' => $hand->id,
-                    'card_id' => $card->id,
-                    'player_id' => $player->id
+                $player = Player::firstOrCreate([
+                    'name' => $playerName,
+                    'site_id' => $this->site->id,
+                ]);
+
+                foreach (explode(' ', $cardString) as $foundCard) {
+                    $split = str_split($foundCard);
+                    $card = $this->getCardFromDb($split);
+
+                    HandCard::firstOrCreate([
+                        'context' => 'hole',
+                        'hand_id' => $hand->id,
+                        'card_id' => $card->id,
+                        'player_id' => $player->id
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                Log::error('Failed to store hole cards', [
+                    'match' => $match,
+                    'error' => $e->getMessage()
                 ]);
             }
         }
@@ -251,7 +280,7 @@ class ParseHandHistory implements ShouldQueue
         $winnerName = $winnerMatch[1] ?? null;
         $winnerAmount = isset($winnerMatch[2]) ? (float) $winnerMatch[2] : 0;
 
-        preg_match_all('/Seat (\d+): (\w+) \((\$[\d\.]+) in chips\)(?: is sitting out)?/', $handText, $seats, PREG_SET_ORDER);
+        preg_match_all('/Seat (\d+): (.+?) \((\$[\d\.]+) in chips\)(?: is sitting out)?/', $handText, $seats, PREG_SET_ORDER);
         $seatMap = collect($seats)->mapWithKeys(fn($s) => [(int) $s[1] => $s[2]]);
         $orderedSeats = collect($seatMap)->sortKeys()->values()->all();
 

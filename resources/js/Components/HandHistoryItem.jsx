@@ -6,6 +6,7 @@ function HandHistoryItem({historyItem}) {
     const flopCards = historyItem.hand_cards.filter(card => card.context === 'flop' && card.player_id === null);
     const turnCard = historyItem.hand_cards.find(card => card.context === 'turn' && card.player_id === null);
     const riverCard = historyItem.hand_cards.find(card => card.context === 'river' && card.player_id === null);    
+    
     return (
         <tr 
             className="border-b cursor-pointer hover:bg-gray-100 transition"
@@ -19,9 +20,14 @@ function HandHistoryItem({historyItem}) {
                 </div>
             </td>
             <td>
-                <span className={`font-bold font-mono text-base ${historyItem.hand_players[0].result > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                {historyItem.hand_players[0].result}
-                </span>
+                {historyItem.hand_players.length > 0 ? (
+                    <span className={`font-bold font-mono text-base ${historyItem.hand_players[0].result > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                        {historyItem.hand_players[0].result}
+                    </span>
+                ) : (
+                    <span className='font-bold font-mono text-base'>0.00</span>
+                )}
+                
             </td>
             <td>
                 <div className="flex gap-1">
