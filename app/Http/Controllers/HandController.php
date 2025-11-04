@@ -44,13 +44,19 @@ class HandController extends Controller
 
         $hands = Hand::whereHas('session.player', function ($query) use ($user) {
             $query->where('user_id', $user->id);
-        })->with([
+        })
+        ->whereHas('hand_players', function ($query) use ($user) {
+            $query->whereHas('player', function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+            })->where('result', '!=', 0); // Only include hands with non-zero result
+        })
+        ->with([
             'session.player',
             'session.site',
             'hand_players' => function ($query) use ($user) {
                 $query->whereHas('player', function ($q) use ($user) {
                     $q->where('user_id', $user->id);
-                });
+                })->where('result', '!=', 0); // Also filter loaded hand_players
             },
             'hand_cards' => function ($query) use ($user) {
                 $query->where(function ($q) use ($user) {
@@ -64,7 +70,6 @@ class HandController extends Controller
                 })->with('card');
             }
         ])->get();
-
     
         return response()->json($hands);
     }
