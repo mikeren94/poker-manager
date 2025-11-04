@@ -86,6 +86,7 @@ class ParseHandHistory implements ShouldQueue
 
         [$potSize, $rake] = $this->extractPotAndRake($handText);
         $showdown = preg_match('/shows \[.*?\]/', $handText);
+        $bbSize = $this->extractBbSize($handText);
 
         $hand = Hand::firstOrCreate(
             ['hand_number' => $handId],
@@ -95,6 +96,7 @@ class ParseHandHistory implements ShouldQueue
                 'pot_size' => $potSize,
                 'rake' => $rake,
                 'showdown' => $showdown,
+                'bb_size' => $bbSize
             ]
         );
 
@@ -383,5 +385,11 @@ class ParseHandHistory implements ShouldQueue
                 'net_profit' => null,
             ]
         );
+    }
+
+    protected function extractBbSize(string $text): float
+    {
+        preg_match('/No Limit \(\$?(\d+(?:\.\d+)?)\/\$?(\d+(?:\.\d+)?)\s*USD\)/', $text, $matches);
+        return isset($matches[2]) ? (float) $matches[2] : 2.00;
     }
 }

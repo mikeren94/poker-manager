@@ -24,4 +24,9 @@ class HandPlayer extends Model
     {
         return $this->belongsTo(Player::class);
     }
+    
+    public function hand()
+    {
+        return $this->belongsTo(Hand::class);
+    }
 }

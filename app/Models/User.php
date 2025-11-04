@@ -12,7 +12,7 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
-    protected $appends = ['vpip', 'rakePaid'];
+    protected $appends = ['vpip', 'rakePaid', 'winRate', 'totalProfit', 'playerIds'];
 
     /**
      * The attributes that are mass assignable.
@@ -58,15 +58,34 @@ class User extends Authenticatable
         return $this->getVpip();
     }
 
+    public function getWinRateAttribute(): string
+    {
+        return $this->getWinRate();
+    }
+
     public function getRakePaidAttribute(): float
     {
         return $this->getRakePaid();
     }
 
+    public function getTotalProfitAttribute(): float
+    {
+        return $this->getTotalProfit();
+    }
+    
+    public function getPlayerIdsAttribute()
+    {
+        return $this->players()->pluck('id');
+    }
+
+    private function getTotalProfit()
+    {
+        return HandPlayer::whereIn('player_id', $this->playerIds)->sum('result');
+    }
+
     private function getVpip() 
     {
-        $playerIds = $this->players()->pluck('id');
-        $allActions = HandAction::whereIn('player_id', $playerIds)->get();
+        $allActions = HandAction::whereIn('player_id', $this->playerIds)->get();
         $vpipActions = $allActions->filter(function ($action) {
             return $action->street === 0 && in_array($action->action, ['call', 'raise', '3bet']);
         });
@@ -78,9 +97,8 @@ class User extends Authenticatable
     private function getRakePaid()
     {
         $rakePaid = 0;
-        $playerIds = $this->players()->pluck('id');
 
-        $handIds = HandPlayer::whereIn('player_id', $playerIds)
+        $handIds = HandPlayer::whereIn('player_id', $this->playerIds)
             ->pluck('hand_id')
             ->unique();
 
@@ -95,7 +113,7 @@ class User extends Authenticatable
             $totalWin = $winners->sum('result');
 
             foreach ($winners as $winner) {
-                if (in_array($winner->player_id, $playerIds->toArray())) {
+                if (in_array($winner->player_id, $this->playerIds->toArray())) {
                     $share = $winner->result / $totalWin;
                     $rakePaid += $handRake * $share;
                 }
@@ -103,5 +121,24 @@ class User extends Authenticatable
         }
 
         return $rakePaid;
+    }
+
+    private function getWinRate()
+    {
+        $handIds = HandPlayer::whereIn('player_id', $this->playerIds)
+            ->where('result', '!=', 0)
+            ->get();
+
+        $totalBBs = 0;
+        $totalHands = $handIds->count();
+        $totalProfit = $this->totalProfit;
+        foreach ($handIds as $handPlayer)
+        {
+            $bb = $handPlayer->hand->bb_size;
+            $totalBBs += $bb;
+        }
+
+        $bbPer100 = $totalHands > 0 ? ($totalProfit / $totalBBs) * 100 : 0;
+        return $bbPer100;
     }
 }
