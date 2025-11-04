@@ -16,7 +16,6 @@ class Hand extends Model
         'timestamp',
         'pot_size',
         'rake',
-        'showdown',
         'bb_size'
     ];
 

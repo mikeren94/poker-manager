@@ -17,7 +17,8 @@ class HandPlayer extends Model
         'action',
         'result',
         'is_hero',
-        'is_winner'
+        'is_winner',
+        'showdown'
     ];
 
     public function player()

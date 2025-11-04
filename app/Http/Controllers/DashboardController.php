@@ -23,14 +23,15 @@ class DashboardController extends Controller
         $rakePaid = $user->rakePaid;
         $winRate = $user->winRate;
         $handsPlayed = HandPlayer::whereIn('player_id', $playerIds)->where('result', '!=', 0)->count();
-
+        $showdownsWonPercent = $user->showdownsWonPercent;
         return Inertia::render('Dashboard', [
             'summary' => [
                 'profit' => $profit,
                 'vpip' => $vpip,
                 'rake_paid' => $rakePaid,
                 'hands_played' => $handsPlayed,
-                'win_rate' => $winRate
+                'win_rate' => $winRate,
+                'showdowns_won_percent' => $showdownsWonPercent
             ]
         ]);
     }

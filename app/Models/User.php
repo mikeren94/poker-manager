@@ -12,7 +12,14 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
-    protected $appends = ['vpip', 'rakePaid', 'winRate', 'totalProfit', 'playerIds'];
+    protected $appends = [
+        'vpip', 
+        'rakePaid', 
+        'winRate', 
+        'totalProfit', 
+        'playerIds',
+        'showdownsWonPercent'
+    ];
 
     /**
      * The attributes that are mass assignable.
@@ -77,6 +84,33 @@ class User extends Authenticatable
     {
         return $this->players()->pluck('id');
     }
+
+    public function getShowdownsWonPercentAttribute()
+    {
+        return $this->getShowdownPercent();
+    }
+
+    private function getShowdownPercent()
+    {
+        $showdownsReached = HandPlayer::whereIn('player_id', $this->playerIds)
+            ->where('showdown', true)
+            ->pluck('hand_id')
+            ->unique()
+            ->count();
+
+        $showdownsWon = HandPlayer::whereIn('player_id', $this->playerIds)
+            ->where('showdown', true)
+            ->where('result', '>', 0)
+            ->pluck('hand_id')
+            ->unique()
+            ->count();
+        
+        $showdownWinPercent = $showdownsReached > 0
+            ? ($showdownsWon / $showdownsReached) * 100
+            : 0;
+
+        return round($showdownWinPercent,2);
+    } 
 
     private function getTotalProfit()
     {

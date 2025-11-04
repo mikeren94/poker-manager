@@ -10,7 +10,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 
 export default function Dashboard({summary}) {
-    console.log(summary);
+
     return (
         <AuthenticatedLayout
             header={
@@ -28,7 +28,7 @@ export default function Dashboard({summary}) {
                         <RakeTile amount={summary.rake_paid} />
                         <HandsPlayedTile amount={summary.hands_played} />
                         <WinRateTile amount={summary.win_rate} />
-                        <ShowdownWinTile />
+                        <ShowdownWinTile value={summary.showdowns_won_percent}/>
                     </div>
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         <div className="p-6 text-gray-900">

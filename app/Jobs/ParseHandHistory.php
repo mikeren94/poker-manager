@@ -85,7 +85,6 @@ class ParseHandHistory implements ShouldQueue
         }
 
         [$potSize, $rake] = $this->extractPotAndRake($handText);
-        $showdown = preg_match('/shows \[.*?\]/', $handText);
         $bbSize = $this->extractBbSize($handText);
 
         $hand = Hand::firstOrCreate(
@@ -95,7 +94,6 @@ class ParseHandHistory implements ShouldQueue
                 'timestamp' => $timestamp,
                 'pot_size' => $potSize,
                 'rake' => $rake,
-                'showdown' => $showdown,
                 'bb_size' => $bbSize
             ]
         );
@@ -298,6 +296,15 @@ class ParseHandHistory implements ShouldQueue
             ->groupBy('player_id')
             ->map(fn($actions) => $actions->sum('amount'));
 
+        // Detect players who reached showdown
+        $showdownPlayers = collect();
+
+        // Match lines like: "PlayerX: shows [Ah Kh]"
+        preg_match_all('/^(\w+): shows \[.*?\]/m', $handText, $showMatches, PREG_SET_ORDER);
+        foreach ($showMatches as $match) {
+            $showdownPlayers->push($match[1]);
+        }
+
         foreach ($seats as $seat) {
             [$_, $seatNum, $playerName, $chipStr] = $seat;
 
@@ -319,6 +326,7 @@ class ParseHandHistory implements ShouldQueue
                 'is_winner' => $playerName === $winnerName,
                 'result' => $netResult,
                 'action' => null,
+                'showdown' => $showdownPlayers->contains($playerName)
             ]);
         }
     }
