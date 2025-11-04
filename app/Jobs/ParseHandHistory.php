@@ -94,7 +94,8 @@ class ParseHandHistory implements ShouldQueue
                 'timestamp' => $timestamp,
                 'pot_size' => $potSize,
                 'rake' => $rake,
-                'bb_size' => $bbSize
+                'bb_size' => $bbSize,
+                'raw_text' => $handText
             ]
         );
 

@@ -26,7 +26,7 @@ export default function Dashboard({summary}) {
                         <ProfitTile amount={summary.profit} />
                         <VpipTile value={summary.vpip} />
                         <RakeTile amount={summary.rake_paid} />
-                        <HandsPlayedTile amount={summary.hands_played} />
+                        <HandsPlayedTile amount={summary.hands_played} total={summary.total_hands}/>
                         <WinRateTile amount={summary.win_rate} />
                         <ShowdownWinTile value={summary.showdowns_won_percent}/>
                     </div>

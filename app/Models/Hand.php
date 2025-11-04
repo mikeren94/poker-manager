@@ -16,7 +16,8 @@ class Hand extends Model
         'timestamp',
         'pot_size',
         'rake',
-        'bb_size'
+        'bb_size',
+        'raw_text'
     ];
 
     public function session()
