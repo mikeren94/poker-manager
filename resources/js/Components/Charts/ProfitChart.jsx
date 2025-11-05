@@ -11,13 +11,16 @@ function ProfitChart() {
             const labels = res.data.map(d => d.date);
             const profits = res.data.map(d => d.profit);
 
+            const lastProfit = profits[profits.length - 1];
+            const lineColor = lastProfit >= 0 ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'; // Tailwind green-500 or red-500
+            const fillColor = lastProfit >= 0 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)';
             setChartData({
                 labels,
                 datasets: [{
                     label: 'Profit Over Time',
                     data: profits,
-                    borderColor: 'rgb(75, 192, 192)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: lineColor,
+                    backgroundColor: fillColor,
                     tension: 0.3,
                     fill: true
                 }]
