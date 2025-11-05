@@ -1,3 +1,4 @@
+import ProfitChart from '@/Components/Charts/ProfitChart';
 import HandHistoryList from '@/Components/HandHistoryList';
 import HandHistoryUpload from '@/Components/HandHistoryUpload';
 import HandsPlayedTile from '@/Components/Tiles/HandsPlayedTile';
@@ -29,6 +30,9 @@ export default function Dashboard({summary}) {
                         <HandsPlayedTile amount={summary.hands_played} total={summary.total_hands}/>
                         <WinRateTile amount={summary.win_rate} />
                         <ShowdownWinTile value={summary.showdowns_won_percent}/>
+                    </div>
+                    <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg mb-2">
+                        <ProfitChart />
                     </div>
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         <div className="p-6 text-gray-900">

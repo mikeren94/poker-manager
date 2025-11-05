@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\HandController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ChartController;
 
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -26,6 +27,7 @@ Route::get('/upload', function() {
 Route::get('/hands/{hand}', [HandController::class, 'show'])->middleware(['auth', 'verified'])->name('hands.show');
 Route::post('/hands/upload', [HandController::class, 'upload'])->middleware('auth');
 Route::get('/hands', [HandController::class, 'index'])->middleware('auth');
+Route::get('/charts/profit-over-time', [ChartController::class, 'profitOverTime']);
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
