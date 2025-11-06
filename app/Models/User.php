@@ -154,7 +154,7 @@ class User extends Authenticatable
             }
         }
 
-        return $rakePaid;
+        return round($rakePaid, 2);
     }
 
     private function getWinRate()
@@ -173,6 +173,6 @@ class User extends Authenticatable
         }
 
         $bbPer100 = $totalHands > 0 ? ($totalProfit / $totalBBs) * 100 : 0;
-        return $bbPer100;
+        return round($bbPer100,2);
     }
 }

@@ -27,6 +27,7 @@ function ProfitChart() {
             })
 
             defaultChartOptions.scales.x.type = 'category';
+            defaultChartOptions.scales.x.ticks.display = false;
         }); 
     }, []);
 
