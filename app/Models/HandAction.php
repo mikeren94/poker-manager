@@ -16,7 +16,8 @@ class HandAction extends Model
         'action',
         'amount',
         'street',
-        'action_order'
+        'action_order',
+        'is_uncalled'
     ];
 
     public function player()

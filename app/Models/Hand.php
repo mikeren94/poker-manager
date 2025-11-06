@@ -17,7 +17,8 @@ class Hand extends Model
         'pot_size',
         'rake',
         'bb_size',
-        'raw_text'
+        'raw_text',
+        'winner_count'
     ];
 
     public function session()

@@ -21,10 +21,12 @@ function ProfitChart() {
                     data: profits,
                     borderColor: lineColor,
                     backgroundColor: fillColor,
-                    tension: 0.3,
+                    tension: 0,
                     fill: true
-                }]
+                }],
             })
+
+            defaultChartOptions.scales.x.type = 'category';
         }); 
     }, []);
 

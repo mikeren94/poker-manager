@@ -19,7 +19,7 @@ class ChartController extends Controller
         $raw = HandPlayer::whereIn('player_id', $playerIds)
             ->where('result', '!=', '0')
             ->with('hand')
-            ->orderBy(
+            ->orderByDesc(
                 Hand::select('timestamp')
                     ->whereColumn('hands.id', 'hand_players.hand_id')
             )

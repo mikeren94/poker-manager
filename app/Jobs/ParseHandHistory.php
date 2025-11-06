@@ -76,7 +76,7 @@ class ParseHandHistory implements ShouldQueue
             $this->heroPlayer = Player::firstOrCreate([
                 'name' => $heroName,
                 'site_id' => $this->site->id,
-                'user_id' => $this->user->id
+                'user_id' => $this->user->id 
             ]);
         }
 
@@ -169,6 +169,25 @@ class ParseHandHistory implements ShouldQueue
             'river'   => '/\*\*\* RIVER \*\*\*.*?\n(.*?)\*\*\*/s',
         ];
 
+        // Parse blind posts before street actions
+        if (preg_match_all('/^(.+?): posts (small blind|big blind) \$([\d\.]+)/m', $handText, $blindMatches, PREG_SET_ORDER)) {
+            foreach ($blindMatches as $i => $match) {
+                $playerName = $match[1];
+                $amount = (float) $match[3];
+
+                $player = $this->resolvePlayer($playerName);
+
+                HandAction::create([
+                    'hand_id' => $hand->id,
+                    'player_id' => $player->id,
+                    'action' => 'post',
+                    'amount' => $amount,
+                    'street' => 0, // preflop
+                    'action_order' => $i,
+                ]);
+            }
+        }
+
         foreach ($streets as $streetName => $pattern) {
             preg_match($pattern, $handText, $streetActions);
 
@@ -191,21 +210,28 @@ class ParseHandHistory implements ShouldQueue
             if (!empty($streetActions[1])) {
                 $lines = explode("\n", trim($streetActions[1]));
                 foreach ($lines as $i => $line) {
-                    if (preg_match('/^(.+?): ([^\$]+?)(?: \$?([\d\.]+))?$/', $line, $match)) {
+                    if (preg_match('/^(.+?): ([^\$]+?) \$([\d\.]+)(?: to \$([\d\.]+))?$/', $line, $match)) {
                         $playerName = $match[1];
                         $action = $this->normalizeAction($match[2]);
-                        $amount = isset($match[3]) ? (float) $match[3] : null;
 
-                        $player = Player::firstOrCreate([
-                            'name' => $playerName,
-                            'site_id' => $this->site->id,
-                        ]);
+                        $rawAmount = isset($match[4]) ? (float) $match[4] : (float) $match[3];
+
+                        // Look ahead for an uncalled bet refund line
+                        $isUncalled = false;
+                        for ($j = $i + 1; $j < count($lines); $j++) {
+                            if (preg_match('/Uncalled bet \(\$([\d\.]+)\) returned to ' . preg_quote($playerName, '/') . '/', $lines[$j], $refundMatch)) {
+                                $isUncalled = true;
+                            }
+                        }
+
+                        $player = $this->resolvePlayer($playerName);
 
                         HandAction::create([
                             'hand_id' => $hand->id,
                             'player_id' => $player->id,
                             'action' => $action,
-                            'amount' => $amount,
+                            'amount' => $rawAmount,
+                            'is_uncalled' => $isUncalled,
                             'street' => array_search($streetName, array_keys($streets)),
                             'action_order' => $i,
                         ]);
@@ -247,10 +273,7 @@ class ParseHandHistory implements ShouldQueue
 
                 if ($playerName === $this->heroPlayer->name) continue;
 
-                $player = Player::firstOrCreate([
-                    'name' => $playerName,
-                    'site_id' => $this->site->id,
-                ]);
+                $player = $this->resolvePlayer($playerName);
 
                 foreach (explode(' ', $cardString) as $foundCard) {
                     $split = str_split($foundCard);
@@ -277,46 +300,56 @@ class ParseHandHistory implements ShouldQueue
         preg_match('/Dealt to (\w+) \[/', $handText, $heroMatch);
         $heroName = $heroMatch[1] ?? null;
 
-        preg_match('/(\w+) collected \$([\d\.]+)/', $handText, $winnerMatch);
-        $winnerName = $winnerMatch[1] ?? null;
-        $winnerAmount = isset($winnerMatch[2]) ? (float) $winnerMatch[2] : 0;
+        // Extract all winners and their collected amounts
+        preg_match_all('/(\w+) collected \$([\d\.]+)/', $handText, $winnerMatches, PREG_SET_ORDER);
+        $winners = collect($winnerMatches)->mapWithKeys(fn($m) => [$m[1] => (float) $m[2]]);
+        $hand->update(['winner_count' => $winners->count()]);
 
+        // Extract seated players
         preg_match_all('/Seat (\d+): (.+?) \((\$[\d\.]+) in chips\)(?: is sitting out)?/', $handText, $seats, PREG_SET_ORDER);
         $seatMap = collect($seats)->mapWithKeys(fn($s) => [(int) $s[1] => $s[2]]);
         $orderedSeats = collect($seatMap)->sortKeys()->values()->all();
 
+        // Assign positions
         $positions = $this->generatePositionLabels(count($orderedSeats));
         $buttonSeat = preg_match("/Seat #(\d+) is the button/", $handText, $btnMatch) ? (int) $btnMatch[1] : null;
         $buttonIndex = array_search($seatMap[$buttonSeat], $orderedSeats);
         $rotated = array_merge(array_slice($orderedSeats, $buttonIndex), array_slice($orderedSeats, 0, $buttonIndex));
         $positionMap = array_combine($rotated, $positions);
 
+        // Get player contributions
         $playerContributions = HandAction::where('hand_id', $hand->id)
             ->whereIn('action', ['call', 'bet', 'raise', 'post'])
+            ->where(function ($q) {
+                $q->whereNull('is_uncalled')->orWhere('is_uncalled', false);
+            })
             ->get()
             ->groupBy('player_id')
             ->map(fn($actions) => $actions->sum('amount'));
 
-        // Detect players who reached showdown
+        // Detect showdown players
         $showdownPlayers = collect();
-
-        // Match lines like: "PlayerX: shows [Ah Kh]"
         preg_match_all('/^(\w+): shows \[.*?\]/m', $handText, $showMatches, PREG_SET_ORDER);
         foreach ($showMatches as $match) {
             $showdownPlayers->push($match[1]);
         }
 
+        // Create HandPlayer records
         foreach ($seats as $seat) {
             [$_, $seatNum, $playerName, $chipStr] = $seat;
 
-            $player = Player::firstOrCreate([
-                'name' => $playerName,
-                'site_id' => $this->site->id,
-            ]);
+            if ($playerName == $this->heroPlayer->name) 
+            {
+                $userId = $this->user->id;
+            } else {
+                $userId = null;
+            }
+
+            $player = $this->resolvePlayer($playerName);
 
             $contributed = $playerContributions[$player->id] ?? 0.00;
-            $won = ($playerName === $winnerName) ? $winnerAmount : 0.00;
-            $netResult = $won - $contributed;
+            $collected = $winners[$playerName] ?? 0.00;
+            $netResult = -$contributed + $collected;
 
             HandPlayer::firstOrCreate([
                 'hand_id' => $hand->id,
@@ -324,7 +357,7 @@ class ParseHandHistory implements ShouldQueue
             ], [
                 'position' => $positionMap[$playerName] ?? null,
                 'is_hero' => $playerName === $heroName,
-                'is_winner' => $playerName === $winnerName,
+                'is_winner' => $winners->has($playerName),
                 'result' => $netResult,
                 'action' => null,
                 'showdown' => $showdownPlayers->contains($playerName)
@@ -400,5 +433,15 @@ class ParseHandHistory implements ShouldQueue
     {
         preg_match('/No Limit \(\$?(\d+(?:\.\d+)?)\/\$?(\d+(?:\.\d+)?)\s*USD\)/', $text, $matches);
         return isset($matches[2]) ? (float) $matches[2] : 2.00;
+    }
+
+    protected function resolvePlayer(string $name): Player
+    {
+        return ($name === $this->heroPlayer->name)
+            ? $this->heroPlayer
+            : Player::firstOrCreate([
+                'name' => $name,
+                'site_id' => $this->site->id,
+            ]);
     }
 }
