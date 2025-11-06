@@ -1,6 +1,7 @@
 import ProfitChart from '@/Components/Charts/ProfitChart';
 import HandHistoryList from '@/Components/HandHistoryList';
 import HandHistoryUpload from '@/Components/HandHistoryUpload';
+import SessionTable from '@/Components/Tables/SessionTable';
 import HandsPlayedTile from '@/Components/Tiles/HandsPlayedTile';
 import ProfitTile from '@/Components/Tiles/ProfitTile';
 import RakeTile from '@/Components/Tiles/RakeTile';
@@ -36,7 +37,7 @@ export default function Dashboard({summary}) {
                     </div>
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         <div className="p-6 text-gray-900">
-                            <HandHistoryList />
+                            <SessionTable />
                         </div>
                     </div>
                 </div>

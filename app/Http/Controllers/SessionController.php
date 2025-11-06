@@ -6,6 +6,8 @@ use App\Models\Session;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreSessionRequest;
 use App\Http\Requests\UpdateSessionRequest;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class SessionController extends Controller
 {
@@ -14,9 +16,26 @@ class SessionController extends Controller
      */
     public function index()
     {
-        //
+        $user = Auth::user();
+
+        $sessions = Session::whereIn('player_id', $user->playerIds)->orderByDesc('start_time')->get();
+
+        return response()->json($sessions);
     }
 
+    public function list(Session $session)
+    {
+        $user = Auth::user();
+        $hands = $session
+            ->hands()
+            ->with([
+                'hand_cards.card',
+                'hand_players'
+            ])
+            ->get();
+        return response()->json($hands);
+    }
+    
     /**
      * Show the form for creating a new resource.
      */
@@ -38,7 +57,9 @@ class SessionController extends Controller
      */
     public function show(Session $session)
     {
-        //
+        return Inertia::render('Session', [
+            'session' => $session
+        ]);
     }
 
     /**

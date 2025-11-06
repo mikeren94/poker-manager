@@ -4,7 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\HandController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ChartController;
-
+use App\Http\Controllers\SessionController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -27,6 +27,10 @@ Route::get('/upload', function() {
 Route::get('/hands/{hand}', [HandController::class, 'show'])->middleware(['auth', 'verified'])->name('hands.show');
 Route::post('/hands/upload', [HandController::class, 'upload'])->middleware('auth');
 Route::get('/hands', [HandController::class, 'index'])->middleware('auth');
+Route::get('/sessions', [SessionController::class, 'index'])->middleware('auth');
+Route::get('/sessions/{session}', [SessionController::class, 'show'])->middleware(['auth', 'verified'])->name('session.show');
+Route::get('/sessions/{session}/hands', [SessionController::class, 'list'])->middleware(['auth', 'verified'])->name('session.hands');
+
 Route::get('/charts/profit-over-time', [ChartController::class, 'profitOverTime']);
 
 Route::middleware('auth')->group(function () {

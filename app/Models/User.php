@@ -119,12 +119,26 @@ class User extends Authenticatable
 
     private function getVpip() 
     {
-        $allActions = HandAction::whereIn('player_id', $this->playerIds)->get();
-        $vpipActions = $allActions->filter(function ($action) {
-            return $action->street === 0 && in_array($action->action, ['call', 'raise', '3bet']);
-        });
-        $vpipHandCount = $vpipActions->pluck('hand_id')->unique()->count();
-        $totalHandCount = $allActions->pluck('hand_id')->unique()->count();
+        // $allActions = HandAction::whereIn('player_id', $this->playerIds)->get();
+        // $vpipActions = $allActions->filter(function ($action) {
+        //     return $action->street === 0 && in_array($action->action, ['call', 'raise', '3bet']);
+        // });
+        // $vpipHandCount = $vpipActions->pluck('hand_id')->unique()->count();
+        // $totalHandCount = $allActions->pluck('hand_id')->unique()->count();
+        // return $totalHandCount > 0 ? round(($vpipHandCount / $totalHandCount) * 100) : 0;
+
+        $contributingActions = HandPlayer::select('hand_id')
+            ->whereIn('player_id', $this->playerIds)
+            ->where('result', '!=', 0)
+            ->groupBy('hand_id')
+            ->get();
+
+        $allHands = HandPlayer::select('hand_id')
+            ->whereIn('player_id', $this->playerIds)
+            ->groupBy('hand_id')
+            ->get();
+        $totalHandCount = $allHands->count();
+        $vpipHandCount = $contributingActions->count();
         return $totalHandCount > 0 ? round(($vpipHandCount / $totalHandCount) * 100) : 0;
     }   
 
