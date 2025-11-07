@@ -9,6 +9,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Carbon;
 
 use App\Models\Session;
 use App\Models\Site;
@@ -19,6 +20,8 @@ use App\Models\HandCard;
 use App\Models\Card;
 use App\Models\HandPlayer;
 use App\Models\User;
+use DateTime;
+use Throwable;
 
 class ParseHandHistory implements ShouldQueue
 {
@@ -26,7 +29,7 @@ class ParseHandHistory implements ShouldQueue
 
     protected string $path;
     protected User $user;
-    protected string $gameType = 'tournament';
+    protected string $gameType = 'cash';
     protected $session;
     protected $heroPlayer;
     protected $site;
@@ -39,8 +42,16 @@ class ParseHandHistory implements ShouldQueue
 
     public function handle(): void
     {
-        Log::info("ParseHandHistory job started", ['path' => $this->path, 'user_id' => $this->user->id]);
-        $this->handlePokerstarsHistory();
+        try {
+            $this->handlePokerstarsHistory();
+        } catch (Throwable $e) {
+            Log::error('Hand history parsing failed', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
     }
 
     protected function handlePokerstarsHistory(): void
@@ -49,417 +60,290 @@ class ParseHandHistory implements ShouldQueue
         $hands = array_filter(preg_split('/(?=PokerStars Hand #\d+)/', $content));
 
         $this->site = Site::firstOrCreate(['name' => 'PokerStars']);
+    
+        foreach($hands as $handText) 
+        {
+            $this->parseHand($handText);
+        }
+    }
 
-        foreach ($hands as $handText) {
-            try {
-                $handText = str_replace("\r\n", "\n", $handText);
-                if (trim($handText) === '') continue;
+    public function parseHand(string $text): Hand
+    {
+        $lines = explode("\n", $text);
 
-                $this->parseHand($handText);
-            } catch (\Throwable $e) {
-                Log::error("Failed to parse hand", [
-                    'handText' => substr($handText, 0, 500),
-                    'error' => $e->getMessage(),
+        $heroName = $this->extractHeroName($text);
+        $this->heroPlayer = Player::firstOrCreate([
+            'name' => $heroName,
+            'site_id' => $this->site->id,
+            'user_id' => $this->user->id,
+        ]);
+
+        // If the session doesn't exist yet, create it
+        if(!$this->session) {
+            $firstLine = $lines[0];
+
+            // Extract stakes from first line
+            preg_match('/\((\$[\d\.]+\/\$[\d\.]+) USD\)/', $firstLine, $stakesMatch);
+            $stakes = $stakesMatch[1] ?? null;
+
+            // Extract table name from second line
+            $secondLine = $lines[1] ?? '';
+            preg_match("/Table '([^']+)'/", $secondLine, $tableMatch);
+            $tableName = $tableMatch[1] ?? null;
+
+            // Combine to form session ID
+            $sessionId = $tableName && $stakes ? "{$tableName} ({$stakes})" : null;
+
+            // Extract timestamp (Eastern Time)
+            preg_match('/\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) ET\]/', $firstLine, $timeMatch);
+                $startTime = isset($timeMatch[1])
+                    ? Carbon::createFromFormat('Y-m-d H:i:s', $timeMatch[1], 'America/New_York')->setTimezone('UTC')
+                    : null;
+
+            $this->session = Session::firstOrCreate([
+                'session_id' => $sessionId,
+                'type' => $this->gameType,
+                'stakes' => $stakes,
+                'start_time' => $startTime,
+                'player_id' => $this->heroPlayer->id,
+                'site_id' => $this->site->id
+            ]);
+        }
+
+        
+        $hand = Hand::firstOrCreate([
+            'game_session_id' => $this->session->id,
+            'hand_number' => $this->extractHandNumber($lines),
+            'timestamp' => $this->extractTimestamp($lines),
+            'raw_text' => $text
+        ]);
+
+        $playerContributions = [];
+        $playerCollections = [];
+        $uncalledReturns = [];
+        $rake = 0;
+
+        $street = 0; // 0 = preflop
+        $actionOrder = 0;
+        foreach ($lines as $line) {
+            $this->parseLine($line, $hand, $playerContributions, $playerCollections, $uncalledReturns, $rake, $street, $actionOrder);
+        }
+
+        $this->applyCardsToHand($hand, $lines);
+
+        $hand->rake = $rake;
+        $hand->pot_size = array_sum($playerCollections);
+        $hand->save();
+        foreach ($playerContributions as $name => $contributed) {
+            if($this->heroPlayer->name !== $name) 
+            {
+                $player = Player::firstOrCreate([
+                    'name' => $name,
+                    'site_id' => $this->session->site_id,
                 ]);
+            } else {
+                $player = $this->heroPlayer;
+            }
+
+            $collected = $playerCollections[$name] ?? 0;
+            $returned = $uncalledReturns[$name] ?? 0;
+
+            HandPlayer::updateOrCreate([
+                'hand_id' => $hand->id,
+                'player_id' => $player->id,
+            ], [
+                'result' => $collected - $contributed + $returned,
+            ]);
+        }
+
+        return $hand;
+    }
+
+    protected function applyCardsToHand(Hand $hand, $lines)
+    {
+        foreach ($lines as $line) {
+            // Hero hole cards
+            if (preg_match('/Dealt to (\w+) \[([2-9TJQKA][hdcs]) ([2-9TJQKA][hdcs])\]/', $line, $m)) {
+                $playerName = $m[1];
+                $cards = [$m[2], $m[3]];
+
+                $playerName = $m[1];
+                $cards = [$m[2], $m[3]];
+                $this->storePlayerCards($hand, $playerName, $cards, 'hole');
+            }
+            // Showdown cards
+            if (preg_match('/^(\w+): shows \[([2-9TJQKA][hdcs]) ([2-9TJQKA][hdcs])\]/', $line, $m)) {
+                $playerName = $m[1];
+                $cards = [$m[2], $m[3]];
+                $this->storePlayerCards($hand, $playerName, $cards, 'hole');
+            }
+
+            // Mucked cards
+            if (preg_match('/^(\w+): mucks \[([2-9TJQKA][hdcs]) ([2-9TJQKA][hdcs])\]/', $line, $m)) {
+                $playerName = $m[1];
+                $cards = [$m[2], $m[3]];
+                $this->storePlayerCards($hand, $playerName, $cards, 'hole');
+            }
+
+            // Board cards
+            if (preg_match('/\*\*\* FLOP \*\*\* \[([2-9TJQKA][hdcs]) ([2-9TJQKA][hdcs]) ([2-9TJQKA][hdcs])\]/', $line, $m)) {
+                $cards = [$m[1], $m[2], $m[3]];
+                foreach ($cards as $card) {
+                    $this->storeBoardCard($hand, $card, 'flop');
+                }
+            }
+
+            // TURN
+            if (preg_match('/\*\*\* TURN \*\*\* \[[^\]]+\] \[([2-9TJQKA][hdcs])\]/', $line, $m)) {
+                $this->storeBoardCard($hand, $m[1], 'turn');
+            }
+
+            // RIVER
+            if (preg_match('/\*\*\* RIVER \*\*\* \[[^\]]+\] \[([2-9TJQKA][hdcs])\]/', $line, $m)) {
+                $this->storeBoardCard($hand, $m[1], 'river');
             }
         }
     }
 
-    protected function parseHand(string $handText): void
+    protected function storePlayerCards(Hand $hand, string $playerName, array $cards, string $type): void
     {
-        $handId = $this->extractHandId($handText);
-        $heroName = $this->extractHeroName($handText);
-        $timestamp = $this->extractTimestamp($handText);
+        $player = Player::where('name', $playerName)->where('site_id', $this->site->id)->first();
+        if (!$player) return;
 
-        if (is_null($this->heroPlayer)) {
+        foreach ($cards as $card) {
+            $cardModel = Card::firstOrCreate([
+                'rank' => substr($card, 0, -1),
+                'suit' => substr($card, -1),
+            ]);
 
-            $this->heroPlayer = Player::firstOrCreate([
-                'name' => $heroName,
-                'site_id' => $this->site->id,
-                'user_id' => $this->user->id 
+            HandCard::firstOrCreate([
+                'hand_id' => $hand->id,
+                'player_id' => $player->id,
+                'card_id' => $cardModel->id,
+                'context' => $type,
             ]);
         }
-
-        if (!$this->session) {
-            $this->initializeSession($handText);
-        }
-
-        [$potSize, $rake] = $this->extractPotAndRake($handText);
-        $bbSize = $this->extractBbSize($handText);
-
-        $hand = Hand::firstOrCreate(
-            ['hand_number' => $handId],
-            [
-                'game_session_id' => $this->session->id,
-                'timestamp' => $timestamp,
-                'pot_size' => $potSize,
-                'rake' => $rake,
-                'bb_size' => $bbSize,
-                'raw_text' => $handText
-            ]
-        );
-
-        $this->parseActionsAndBoard($handText, $hand);
-        $this->storeHoleCards($handText, $hand);
-        $this->storeHandPlayers($handText, $hand);
     }
 
-    protected function extractHandId(string $text): ?string
+    protected function storeBoardCard(Hand $hand, string $card, string $type): void
     {
-        preg_match('/PokerStars Hand #(\d+)/', $text, $match);
-        return $match[1] ?? null;
+        $cardModel = Card::firstOrCreate([
+            'rank' => substr($card, 0, -1),
+            'suit' => substr($card, -1),
+        ]);
+
+        HandCard::firstOrCreate([
+            'hand_id' => $hand->id,
+            'player_id' => null,
+            'card_id' => $cardModel->id,
+            'context' => $type,
+        ]);
+    }
+
+    protected function extractHandNumber(array $lines): ?string
+    {
+        foreach ($lines as $line) {
+            if (preg_match('/PokerStars Hand #(\d+):/', $line, $m)) {
+                return $m[1];
+            }
+        }
+        return null;
+    }
+
+
+    protected function extractTimestamp(array $lines): ?Carbon
+    {
+        foreach ($lines as $line) {
+            if (preg_match('/\[(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}) ET\]/', $line, $m)) {
+                return Carbon::createFromFormat('Y/m/d H:i:s', $m[1], 'America/New_York')->setTimezone('UTC');
+            }
+        }
+        return null;
+    }
+
+    protected function parseLine(string $line, Hand $hand, &$contributions, &$collections, &$returns, &$rake, &$street, &$actionOrder): void  
+    {
+        if (str_contains($line, '*** FLOP ***')) {
+            $street = 1;
+        }
+        if (str_contains($line, '*** TURN ***')) {
+            $street = 2;
+        }
+        if (str_contains($line, '*** RIVER ***')) {
+            $street = 3;
+        }
+
+        $playerName = explode(':', $line)[0] ?? null;
+
+        $normalizedActions = [
+            'folds' => 'fold',
+            'calls' => 'call',
+            'raises' => 'raise',
+            'bets'  => 'bet',
+            'checks' => 'check',
+            'posts' => 'post',
+        ];
+
+        foreach ($normalizedActions as $pattern => $normalized) {
+            if (str_contains($line, $pattern)) {
+                preg_match('/' . $pattern . '.*?\$?([\d\.]+)?/', $line, $m);
+                $amount = isset($m[1]) ? (float)$m[1] : null;
+
+                if($this->heroPlayer->name !== $playerName) 
+                {
+                    $playerModel = Player::firstOrCreate([
+                        'name' => $playerName,
+                        'site_id' => $this->session->site_id,
+                    ]);
+                } else {
+                    $playerModel = $this->heroPlayer;
+                }
+
+                HandAction::create([
+                    'hand_id' => $hand->id,
+                    'player_id' => $playerModel->id,
+                    'action' => $normalized,
+                    'amount' => $amount,
+                    'street' => $street,
+                    'action_order' => $actionOrder++,
+                ]);
+
+                break;
+            }
+        }
+        if (preg_match('/posts (small|big) blind \$(\d+\.\d+)/', $line, $m)) {
+            $contributions[$playerName] = ($contributions[$playerName] ?? 0) + (float)$m[2];
+        }
+
+        if (preg_match('/(calls|bets|raises).*\$(\d+\.\d+)/', $line, $m)) {
+            $contributions[$playerName] = ($contributions[$playerName] ?? 0) + (float)$m[2];
+        }
+
+        if (preg_match('/Uncalled bet \(\$(\d+\.\d+)\) returned to (\w+)/', $line, $m)) {
+            $returns[$m[2]] = ($returns[$m[2]] ?? 0) + (float)$m[1];
+        }
+
+        if (preg_match('/^(\w+): collected \(\$(\d+\.\d+)\)/', $line, $m)) {
+            $collector = $m[1];
+            $amount = (float) $m[2];
+
+            $collections[$collector] = ($collections[$collector] ?? 0) + $amount;
+        } elseif (preg_match('/^(\w+)\s+collected\s+\$(\d+\.\d+)/', $line, $m)) {
+            $collector = $m[1];
+            $amount = (float) $m[2];
+
+            $collections[$collector] = ($collections[$collector] ?? 0) + $amount;
+        }
+        if (preg_match('/Rake \$(\d+\.\d+)/', $line, $m)) {
+            $rake = (float)$m[1];
+        }
     }
 
     protected function extractHeroName(string $text): ?string
     {
-        preg_match('/Dealt to\s+([^\[]+)\s+\[/', $text, $match);
-        return isset($match[1]) ? trim($match[1]) : null;
-    }
-
-    protected function extractTimestamp(string $text): ?string
-    {
-        preg_match('/- (\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})/', $text, $match);
-        return $match[1] ?? null;
-    }
-
-    protected function extractPotAndRake(string $text): array
-    {
-        if ($this->gameType !== 'tournament') {
-            preg_match('/Total pot \$(\d+\.\d{2})/', $text, $potMatch);
-            preg_match('/Rake \$(\d+\.\d{2})/', $text, $rakeMatch);
-            return [(float) ($potMatch[1] ?? 0), (float) ($rakeMatch[1] ?? 0)];
+        if (preg_match('/Dealt to (\w+) \[.*\]/', $text, $match)) {
+            return $match[1];
         }
-
-        preg_match('/Total pot (\d+)/', $text, $match);
-        return [(float) ($match[1] ?? 0), null];
-    }
-
-    protected function normalizeAction(string $action): string
-    {
-        $action = strtolower(trim($action));
-
-        return match (true) {
-            str_contains($action, 'doesn\'t show') => 'muck',
-            str_contains($action, 'shows') => 'show',
-            str_contains($action, 'mucked') => 'muck',
-            str_contains($action, 'folds') => 'fold',
-            str_contains($action, 'calls') => 'call',
-            str_contains($action, 'bets') => 'bet',
-            str_contains($action, 'raises') => 'raise',
-            str_contains($action, 'checks') => 'check',
-            str_contains($action, 'posts') => 'post',
-            default => $action,
-        };
-    }
-
-    protected function getCardFromDb(array $split): Card
-    {
-        return Card::firstOrCreate([
-            'rank' => $split[0],
-            'suit' => $split[1],
-        ]);
-    }
-
-    protected function parseActionsAndBoard(string $handText, Hand $hand): void
-    {
-        $streets = [
-            'preflop' => '/\*\*\* HOLE CARDS \*\*\*(.*?)\*\*\*/s',
-            'flop'    => '/\*\*\* FLOP \*\*\*.*?\n(.*?)\*\*\*/s',
-            'turn'    => '/\*\*\* TURN \*\*\*.*?\n(.*?)\*\*\*/s',
-            'river'   => '/\*\*\* RIVER \*\*\*.*?\n(.*?)\*\*\*/s',
-        ];
-
-        // Parse blind posts before street actions
-        if (preg_match_all('/^(.+?): posts (small blind|big blind) \$([\d\.]+)/m', $handText, $blindMatches, PREG_SET_ORDER)) {
-            foreach ($blindMatches as $i => $match) {
-                $playerName = $match[1];
-                $amount = (float) $match[3];
-
-                $player = $this->resolvePlayer($playerName);
-
-                HandAction::create([
-                    'hand_id' => $hand->id,
-                    'player_id' => $player->id,
-                    'action' => 'post',
-                    'amount' => $amount,
-                    'street' => 0, // preflop
-                    'action_order' => $i,
-                ]);
-            }
-        }
-
-        foreach ($streets as $streetName => $pattern) {
-            preg_match($pattern, $handText, $streetActions);
-
-            if (in_array($streetName, ['flop', 'turn', 'river'])) {
-                if (preg_match('/\*\*\* ' . strtoupper($streetName) . ' \*\*\*.*?(\[[^\]]+\])$/m', $handText, $boardMatch)) {
-                    $cards = explode(' ', trim(trim($boardMatch[1], '[]')));
-                    foreach ($cards as $matchedCard) {
-                        $split = str_split($matchedCard);
-                        $card = $this->getCardFromDb($split);
-
-                        HandCard::firstOrCreate([
-                            'context' => $streetName,
-                            'hand_id' => $hand->id,
-                            'card_id' => $card->id,
-                        ]);
-                    }
-                }
-            }
-
-            if (!empty($streetActions[1])) {
-                $lines = explode("\n", trim($streetActions[1]));
-                foreach ($lines as $i => $line) {
-                    if (preg_match('/^(.+?): ([^\$]+?) \$([\d\.]+)(?: to \$([\d\.]+))?$/', $line, $match)) {
-                        $playerName = $match[1];
-                        $action = $this->normalizeAction($match[2]);
-
-                        $rawAmount = isset($match[4]) ? (float) $match[4] : (float) $match[3];
-
-                        // Look ahead for an uncalled bet refund line
-                        $isUncalled = false;
-                        for ($j = $i + 1; $j < count($lines); $j++) {
-                            if (preg_match('/Uncalled bet \(\$([\d\.]+)\) returned to ' . preg_quote($playerName, '/') . '/', $lines[$j], $refundMatch)) {
-                                $isUncalled = true;
-                            }
-                        }
-
-                        $player = $this->resolvePlayer($playerName);
-
-                        HandAction::create([
-                            'hand_id' => $hand->id,
-                            'player_id' => $player->id,
-                            'action' => $action,
-                            'amount' => $rawAmount,
-                            'is_uncalled' => $isUncalled,
-                            'street' => array_search($streetName, array_keys($streets)),
-                            'action_order' => $i,
-                        ]);
-                    }
-
-                    // Handle fold/check actions without dollar amounts
-                    if (preg_match('/^(.+?): (folds|checks)/', $line, $match)) {
-                        $playerName = $match[1];
-                        $action = $this->normalizeAction($match[2]);
-
-                        $player = $this->resolvePlayer($playerName);
-
-                        HandAction::create([
-                            'hand_id' => $hand->id,
-                            'player_id' => $player->id,
-                            'action' => $action,
-                            'amount' => null,
-                            'street' => array_search($streetName, array_keys($streets)),
-                            'action_order' => $i,
-                        ]);
-                    }
-
-                }
-            }
-        }
-    }
-
-    protected function storeHoleCards(string $handText, Hand $hand): void
-    {
-        // Hero hole cards
-        preg_match('/Dealt to (\w+) \[([^\]]+)\]/', $handText, $match);
-        $cards = explode(' ', $match[2] ?? '');
-
-        foreach ($cards as $foundCard) {
-            $split = str_split($foundCard);
-            $card = $this->getCardFromDb($split);
-
-            HandCard::firstOrCreate([
-                'context' => 'hole',
-                'hand_id' => $hand->id,
-                'card_id' => $card->id,
-                'player_id' => $this->heroPlayer->id
-            ]);
-        }
-
-        // Other players' shown or mucked cards
-        preg_match_all('/(\w+): (?:shows|mucked) \[([^\]]+)\]/', $handText, $matches1, PREG_SET_ORDER);
-        preg_match_all('/Seat \d+: (\w+).*?mucked \[([^\]]+)\]/', $handText, $matches2, PREG_SET_ORDER);
-
-        $rawMatches = array_merge($matches1, $matches2);
-        $filteredMatches = array_filter($rawMatches, fn($m) => count($m) >= 3);
-
-        foreach ($filteredMatches as $match) {
-            try {
-                $playerName = $match[1];
-                $cardString = $match[2];
-
-                if ($playerName === $this->heroPlayer->name) continue;
-
-                $player = $this->resolvePlayer($playerName);
-
-                foreach (explode(' ', $cardString) as $foundCard) {
-                    $split = str_split($foundCard);
-                    $card = $this->getCardFromDb($split);
-
-                    HandCard::firstOrCreate([
-                        'context' => 'hole',
-                        'hand_id' => $hand->id,
-                        'card_id' => $card->id,
-                        'player_id' => $player->id
-                    ]);
-                }
-            } catch (\Throwable $e) {
-                Log::error('Failed to store hole cards', [
-                    'match' => $match,
-                    'error' => $e->getMessage()
-                ]);
-            }
-        }
-    }
-
-    protected function storeHandPlayers(string $handText, Hand $hand): void
-    {
-        preg_match('/Dealt to (\w+) \[/', $handText, $heroMatch);
-        $heroName = $heroMatch[1] ?? null;
-
-        // Extract all winners and their collected amounts
-        preg_match_all('/(\w+) collected \$([\d\.]+)/', $handText, $winnerMatches, PREG_SET_ORDER);
-        $winners = collect($winnerMatches)->mapWithKeys(fn($m) => [$m[1] => (float) $m[2]]);
-        $hand->update(['winner_count' => $winners->count()]);
-
-        // Extract seated players
-        preg_match_all('/Seat (\d+): (.+?) \((\$[\d\.]+) in chips\)(?: is sitting out)?/', $handText, $seats, PREG_SET_ORDER);
-        $seatMap = collect($seats)->mapWithKeys(fn($s) => [(int) $s[1] => $s[2]]);
-        $orderedSeats = collect($seatMap)->sortKeys()->values()->all();
-
-        // Assign positions
-        $positions = $this->generatePositionLabels(count($orderedSeats));
-        $buttonSeat = preg_match("/Seat #(\d+) is the button/", $handText, $btnMatch) ? (int) $btnMatch[1] : null;
-        $buttonIndex = array_search($seatMap[$buttonSeat], $orderedSeats);
-        $rotated = array_merge(array_slice($orderedSeats, $buttonIndex), array_slice($orderedSeats, 0, $buttonIndex));
-        $positionMap = array_combine($rotated, $positions);
-
-        // Get player contributions
-        $playerContributions = HandAction::where('hand_id', $hand->id)
-            ->whereIn('action', ['call', 'bet', 'raise', 'post'])
-            ->where(function ($q) {
-                $q->whereNull('is_uncalled')->orWhere('is_uncalled', false);
-            })
-            ->get()
-            ->groupBy('player_id')
-            ->map(fn($actions) => $actions->sum('amount'));
-
-        // Detect showdown players
-        $showdownPlayers = collect();
-        preg_match_all('/^(\w+): shows \[.*?\]/m', $handText, $showMatches, PREG_SET_ORDER);
-        foreach ($showMatches as $match) {
-            $showdownPlayers->push($match[1]);
-        }
-
-        // Create HandPlayer records
-        foreach ($seats as $seat) {
-            [$_, $seatNum, $playerName, $chipStr] = $seat;
-
-            if ($playerName == $this->heroPlayer->name) 
-            {
-                $userId = $this->user->id;
-            } else {
-                $userId = null;
-            }
-
-            $player = $this->resolvePlayer($playerName);
-
-            $contributed = $playerContributions[$player->id] ?? 0.00;
-            $collected = $winners[$playerName] ?? 0.00;
-            $netResult = -$contributed + $collected;
-
-            HandPlayer::firstOrCreate([
-                'hand_id' => $hand->id,
-                'player_id' => $player->id,
-            ], [
-                'position' => $positionMap[$playerName] ?? null,
-                'is_hero' => $playerName === $heroName,
-                'is_winner' => $winners->has($playerName),
-                'result' => $netResult,
-                'action' => null,
-                'showdown' => $showdownPlayers->contains($playerName)
-            ]);
-        }
-    }
-
-    protected function generatePositionLabels(int $count): array
-    {
-        return match ($count) {
-            2 => ['SB', 'BB'],
-            3 => ['BTN', 'SB', 'BB'],
-            4 => ['CO', 'BTN', 'SB', 'BB'],
-            5 => ['MP', 'CO', 'BTN', 'SB', 'BB'],
-            6 => ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'],
-            7 => ['UTG', 'UTG+1', 'MP', 'CO', 'BTN', 'SB', 'BB'],
-            8 => ['UTG', 'UTG+1', 'UTG+2', 'MP', 'CO', 'BTN', 'SB', 'BB'],
-            9 => ['UTG', 'UTG+1', 'UTG+2', 'MP', 'MP+1', 'CO', 'BTN', 'SB', 'BB'],
-            default => array_pad([], $count, null),
-        };
-    }
-
-    protected function initializeSession(string $handText): void
-    {
-        $isTournament = preg_match('/Tournament #\(\d+\)/', $handText);
-
-        if (!$isTournament) {
-            preg_match("/Table '(.+?)'/", $handText, $tableMatch);
-            $tableName = $tableMatch[1] ?? 'UnknownTable';
-
-            preg_match('/- (\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})/', $handText, $timeMatch);
-            $timestamp = $timeMatch[1] ?? now()->format('Y-m-d H:i:s');
-
-            $sessionId = "$tableName $timestamp";
-            $this->gameType = 'cash';
-
-            preg_match('/\((\$[\d\.]+)\/(\$[\d\.]+) USD\)/', $handText, $match);
-            $smallBlind = $match[1] ?? '$0.01';
-            $bigBlind = $match[2] ?? '$0.02';
-            $stakes = "($smallBlind / $bigBlind)";
-
-            preg_match("/Seat \d+: {$this->heroPlayer->name} \(\$([\d\.]+) in chips\)/", $handText, $match);
-            $initialBuyIn = isset($match[1]) ? (float) $match[1] : null;
-        } else {
-            preg_match('/Tournament #\d+, \$(\d+\.\d+)\+\$(\d+\.\d+) USD.*\((\d+)\/(\d+)\)/', $handText, $match);
-            $buyIn = isset($match[1]) ? (float) $match[1] : 0;
-            $fee = isset($match[2]) ? (float) $match[2] : 0;
-            $stakes = $buyIn + $fee;
-            $initialBuyIn = $stakes;
-
-            preg_match('/- (\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})/', $handText, $match);
-            $timestamp = $match[1] ?? now()->format('Y-m-d H:i:s');
-            $sessionId = "Tournament $timestamp";
-        }
-
-        $this->session = Session::firstOrCreate(
-            ['session_id' => $sessionId],
-            [
-                'player_id' => $this->heroPlayer->id,
-                'site_id' => $this->site->id,
-                'type' => $this->gameType,
-                'stakes' => $stakes,
-                'start_time' => $timestamp,
-                'end_time' => null,
-                'buy_in' => $initialBuyIn,
-                'cash_out' => null,
-                'net_profit' => null,
-            ]
-        );
-    }
-
-    protected function extractBbSize(string $text): float
-    {
-        preg_match('/No Limit \(\$?(\d+(?:\.\d+)?)\/\$?(\d+(?:\.\d+)?)\s*USD\)/', $text, $matches);
-        return isset($matches[2]) ? (float) $matches[2] : 2.00;
-    }
-
-    protected function resolvePlayer(string $name): Player
-    {
-        return ($name === $this->heroPlayer->name)
-            ? $this->heroPlayer
-            : Player::firstOrCreate([
-                'name' => $name,
-                'site_id' => $this->site->id,
-            ]);
+        return null;
     }
 }

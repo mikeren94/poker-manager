@@ -13,7 +13,8 @@ return new class extends Migration
     {
         Schema::create('hands', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('game_session_id')->constrained('game_sessions')->onDelete('cascade');            $table->string('hand_number')->nullable();
+            $table->foreignId('game_session_id')->constrained('game_sessions')->onDelete('cascade');           
+            $table->string('hand_number')->nullable();
             $table->timestamp('timestamp')->nullable();
             $table->decimal('pot_size', 10, 2)->nullable();
             $table->decimal('rake', 10,2)->nullable();

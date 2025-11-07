@@ -186,7 +186,11 @@ class User extends Authenticatable
             $totalBBs += $bb;
         }
 
-        $bbPer100 = $totalHands > 0 ? ($totalProfit / $totalBBs) * 100 : 0;
+        $bbPer100 = 0;
+        if($totalBBs > 0) 
+        {
+            $bbPer100 = $totalHands > 0 ? ($totalProfit / $totalBBs) * 100 : 0;
+        }
         return round($bbPer100,2);
     }
 }
