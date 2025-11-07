@@ -22,7 +22,8 @@ function ProfitChart() {
                     borderColor: lineColor,
                     backgroundColor: fillColor,
                     tension: 0,
-                    fill: true
+                    fill: true,
+                    pointRadius: 0
                 }],
             })
 

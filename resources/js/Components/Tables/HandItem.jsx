@@ -2,7 +2,6 @@ import { router } from '@inertiajs/react';
 import DisplayCard from "@/Components/DisplayCard";
 
 function HandItem({historyItem}) {
-    console.log(historyItem);
     const playerCards = historyItem.hand_cards.filter(card => card.player_id);
     const flopCards = historyItem.hand_cards.filter(card => card.context === 'flop' && card.player_id === null);
     const turnCard = historyItem.hand_cards.find(card => card.context === 'turn' && card.player_id === null);

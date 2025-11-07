@@ -1,10 +1,27 @@
 import { useEffect, useState } from "react";
 import LoadingSpinner from "../LoadingSpinner";
 import SessionItem from './SessionItem';
+import {
+    useReactTable,
+    getCoreRowModel,
+    getSortedRowModel,
+} from '@tanstack/react-table';
+import { sessionColumns } from './columns.jsx';
+import TableHeader from "./TableHeader";
 
 function SessionTable() {
     const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [sorting, setSorting] = useState([]);
+
+    const table = useReactTable({
+        data: sessions,
+        columns: sessionColumns,
+        state: { sorting },
+        onSortingChange: setSorting,
+        getCoreRowModel: getCoreRowModel(),
+        getSortedRowModel: getSortedRowModel(),
+    });
 
     const getSessions = async () => {
         try {
@@ -26,20 +43,12 @@ function SessionTable() {
                 <LoadingSpinner message="loading..." />
             ) : sessions.length > 0 ? (
                 <table className="table-auto w-full">
-                    <thead>
-                        <tr>
-                            <td>Session</td>
-                            <td>Stakes</td>
-                            <td>Time</td>
-                            <td>Result</td>
-                        </tr>
-                    </thead>
+                    <TableHeader table={table} />
                     <tbody>
-                        {sessions.map((session, index) => (
-                            <SessionItem key={index} session={session}/>
-                        ))}         
+                    {table.getRowModel().rows.map(row => (
+                        <SessionItem key={row.id} session={row.original} />
+                    ))}
                     </tbody>
-
                 </table>
             ) : (
                 <p>No sessions found</p>
