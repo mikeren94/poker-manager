@@ -20,6 +20,7 @@ class SessionController extends Controller
 
         $sessions = Session::whereIn('player_id', $user->playerIds)->orderByDesc('start_time')->get();
 
+        
         return response()->json($sessions);
     }
 
@@ -28,11 +29,33 @@ class SessionController extends Controller
         $user = Auth::user();
         $hands = $session
             ->hands()
+            ->whereHas('hand_players', function ($query) use ($user) {
+                $query->whereHas('player', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                })->where('result', '!=', 0); // Filter hands by result
+            })
             ->with([
-                'hand_cards.card',
-                'hand_players'
+                'hand_cards' => function ($query) use ($user) {
+                    $query->where(function ($q) use ($user) {
+                        $q->whereHas('player', function ($sub) use ($user) {
+                            $sub->where('user_id', $user->id);
+                        })
+                        ->orWhere(function ($sub) {
+                            $sub->whereNull('player_id')
+                                ->whereIn('context', ['flop', 'turn', 'river']);
+                        });
+                    })->with('card');
+                },
+                'hand_players' => function ($query) use ($user) {
+                    $query->whereHas('player', function ($q) use ($user) {
+                        $q->where('user_id', $user->id);
+                    })->where('result', '!=', 0); // Only load relevant hand_players
+                },
+                'session.player',
+                'session.site',
             ])
             ->get();
+
         return response()->json($hands);
     }
     

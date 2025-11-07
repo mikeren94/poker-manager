@@ -236,6 +236,24 @@ class ParseHandHistory implements ShouldQueue
                             'action_order' => $i,
                         ]);
                     }
+
+                    // Handle fold/check actions without dollar amounts
+                    if (preg_match('/^(.+?): (folds|checks)/', $line, $match)) {
+                        $playerName = $match[1];
+                        $action = $this->normalizeAction($match[2]);
+
+                        $player = $this->resolvePlayer($playerName);
+
+                        HandAction::create([
+                            'hand_id' => $hand->id,
+                            'player_id' => $player->id,
+                            'action' => $action,
+                            'amount' => null,
+                            'street' => array_search($streetName, array_keys($streets)),
+                            'action_order' => $i,
+                        ]);
+                    }
+
                 }
             }
         }
