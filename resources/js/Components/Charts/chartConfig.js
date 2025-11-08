@@ -69,7 +69,7 @@ export const defaultChartOptions = {
     y: {
       beginAtZero: true,
       ticks: {
-        callback: value => `$${value}`,
+        callback: value => `$${Number(value).toFixed(2)}`,
         color: '#666'
       },
       grid: {
