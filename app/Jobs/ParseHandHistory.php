@@ -45,6 +45,7 @@ class ParseHandHistory implements ShouldQueue
         try {
             $this->handlePokerstarsHistory();
         } catch (Throwable $e) {
+            echo $e->getMessage();
             Log::error('Hand history parsing failed', [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
@@ -93,11 +94,14 @@ class ParseHandHistory implements ShouldQueue
             // Combine to form session ID
             $sessionId = $tableName && $stakes ? "{$tableName} ({$stakes})" : null;
 
-            preg_match('/\[(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})/', $firstLine, $timeMatch);
-            $startTime = isset($timeMatch[1])
-                ? Carbon::createFromFormat('Y/m/d H:i:s', $timeMatch[1], 'America/New_York')->setTimezone('UTC')
+            preg_match('/\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}/', $firstLine, $match);
+
+            $rawTimestamp = $match[0] ?? null;
+
+            $startTime = $rawTimestamp
+                ? Carbon::createFromFormat('Y/m/d H:i:s', $rawTimestamp, 'America/New_York')->setTimezone('UTC')
                 : null;
-                
+
             $this->session = Session::firstOrCreate([
                 'session_id' => $sessionId,
                 'type' => $this->gameType,
