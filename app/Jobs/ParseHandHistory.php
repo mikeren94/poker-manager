@@ -80,8 +80,7 @@ class ParseHandHistory implements ShouldQueue
 
         // If the session doesn't exist yet, create it
         if(!$this->session) {
-            $firstLine = $lines[0];
-
+            $firstLine = collect($lines)->first(fn($line) => trim($line) !== '');
             // Extract stakes from first line
             preg_match('/\((\$[\d\.]+\/\$[\d\.]+) USD\)/', $firstLine, $stakesMatch);
             $stakes = $stakesMatch[1] ?? null;
@@ -94,12 +93,11 @@ class ParseHandHistory implements ShouldQueue
             // Combine to form session ID
             $sessionId = $tableName && $stakes ? "{$tableName} ({$stakes})" : null;
 
-            // Extract timestamp (Eastern Time)
-            preg_match('/\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) ET\]/', $firstLine, $timeMatch);
-                $startTime = isset($timeMatch[1])
-                    ? Carbon::createFromFormat('Y-m-d H:i:s', $timeMatch[1], 'America/New_York')->setTimezone('UTC')
-                    : null;
-
+            preg_match('/\[(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})/', $firstLine, $timeMatch);
+            $startTime = isset($timeMatch[1])
+                ? Carbon::createFromFormat('Y/m/d H:i:s', $timeMatch[1], 'America/New_York')->setTimezone('UTC')
+                : null;
+                
             $this->session = Session::firstOrCreate([
                 'session_id' => $sessionId,
                 'type' => $this->gameType,
@@ -126,6 +124,10 @@ class ParseHandHistory implements ShouldQueue
         $street = 0; // 0 = preflop
         $actionOrder = 0;
         foreach ($lines as $line) {
+            if (preg_match('/^Seat \d+: (\w+)/', $line, $m)) {
+                $seatedPlayers[] = $m[1];
+            }
+
             $this->parseLine($line, $hand, $playerContributions, $playerCollections, $uncalledReturns, $rake, $street, $actionOrder);
         }
 
@@ -134,17 +136,16 @@ class ParseHandHistory implements ShouldQueue
         $hand->rake = $rake;
         $hand->pot_size = array_sum($playerCollections);
         $hand->save();
-        foreach ($playerContributions as $name => $contributed) {
-            if($this->heroPlayer->name !== $name) 
-            {
-                $player = Player::firstOrCreate([
+
+        foreach ($seatedPlayers as $name) {
+            $player = ($this->heroPlayer->name === $name)
+                ? $this->heroPlayer
+                : Player::firstOrCreate([
                     'name' => $name,
                     'site_id' => $this->session->site_id,
                 ]);
-            } else {
-                $player = $this->heroPlayer;
-            }
 
+            $contributed = $playerContributions[$name] ?? 0;
             $collected = $playerCollections[$name] ?? 0;
             $returned = $uncalledReturns[$name] ?? 0;
 
@@ -275,19 +276,26 @@ class ParseHandHistory implements ShouldQueue
 
         $playerName = explode(':', $line)[0] ?? null;
 
-        $normalizedActions = [
-            'folds' => 'fold',
-            'calls' => 'call',
-            'raises' => 'raise',
-            'bets'  => 'bet',
-            'checks' => 'check',
-            'posts' => 'post',
+        $patterns = [
+            'raises' => '/raises \$([\d\.]+) to \$([\d\.]+)/',
+            'bets'   => '/bets \$([\d\.]+)/',
+            'calls'  => '/calls \$([\d\.]+)/',
+            'posts'  => '/posts (?:small|big) blind \$([\d\.]+)/',
+            'folds'  => '/folds/',
+            'checks' => '/checks/',
         ];
 
-        foreach ($normalizedActions as $pattern => $normalized) {
-            if (str_contains($line, $pattern)) {
-                preg_match('/' . $pattern . '.*?\$?([\d\.]+)?/', $line, $m);
-                $amount = isset($m[1]) ? (float)$m[1] : null;
+        foreach ($patterns as $action => $regex) {
+            if (str_contains($line, $action)) {
+                if (preg_match($regex, $line, $m)) {
+                    $amount = isset($m[1]) ? (float)$m[1] : null;
+
+                    if ($action === 'raises' && isset($m[2])) {
+                        $amount = (float)$m[2]; // use the final raise amount
+                    }
+                } else {
+                    $amount = null;
+                }
 
                 if($this->heroPlayer->name !== $playerName) 
                 {
@@ -302,7 +310,7 @@ class ParseHandHistory implements ShouldQueue
                 HandAction::create([
                     'hand_id' => $hand->id,
                     'player_id' => $playerModel->id,
-                    'action' => $normalized,
+                    'action' => $action,
                     'amount' => $amount,
                     'street' => $street,
                     'action_order' => $actionOrder++,
