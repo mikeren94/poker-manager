@@ -90,8 +90,26 @@ export const sessionColumns = [
         header: 'Time',
         cell: info => new Date(info.getValue()).toLocaleString(),
     }),
-    columnHelper.accessor('result', {
-        header: 'Result',
-        cell: info => `$${info.getValue().toFixed(2)}`,
-    }),
+  columnHelper.accessor(
+    row => row.result ?? 0,
+    {
+      id: 'result',
+      header: 'Result',
+      enableSorting: true,
+      cell: info => {
+        const value = info.getValue();
+        const color = value > 0 ? 'text-green-600' : 'text-red-500';
+        return (
+          <span className={`font-bold font-mono text-base ${color}`}>
+            {value.toFixed(2)}
+          </span>
+        );
+      },
+      sortingFn: (rowA, rowB) => {
+        const resultA = rowA.original.result ?? 0;
+        const resultB = rowB.original.result ?? 0;
+        return resultA - resultB; // ✅ correct direction
+      },
+    }
+  ),
 ];
