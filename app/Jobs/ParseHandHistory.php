@@ -111,13 +111,15 @@ class ParseHandHistory implements ShouldQueue
                 'site_id' => $this->site->id
             ]);
         }
+        $bbSize = $this->extractBbSize($text);
 
         
         $hand = Hand::firstOrCreate([
             'game_session_id' => $this->session->id,
             'hand_number' => $this->extractHandNumber($lines),
             'timestamp' => $this->extractTimestamp($lines),
-            'raw_text' => $text
+            'raw_text' => $text,
+            'bb_size' => $bbSize,
         ]);
 
         $playerContributions = [];
@@ -162,6 +164,19 @@ class ParseHandHistory implements ShouldQueue
         }
 
         return $hand;
+    }
+
+    protected function extractBbSize(string $text): float
+    {
+        // Example line: "Hold'em No Limit ($0.01/$0.02 USD)"
+        preg_match('/\((\$?\d+(\.\d+)?\/\$?\d+(\.\d+)?)\s*USD\)/', $text, $matches);
+
+        if (isset($matches[1])) {
+            $parts = explode('/', $matches[1]);
+            return isset($parts[1]) ? (float) str_replace('$', '', $parts[1]) : 0.02;
+        }
+
+        return 0.02; // fallback default
     }
 
     protected function applyCardsToHand(Hand $hand, $lines)
