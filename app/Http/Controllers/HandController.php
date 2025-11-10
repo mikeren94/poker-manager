@@ -19,20 +19,28 @@ class HandController extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            'hand_history' => 'required|file|mimes:txt|max:2048'
+            'hand_history' => 'required|array',
+            'hand_history.*' => 'file|mimes:txt|max:2048'
         ]);
 
-        $file = $request->file('hand_history');
-        $filename = uniqid('hand_') . '.' . $file->getClientOriginalExtension();
-        $path = $file->storeAs('hand_histories', $filename);
+        $uploadedFiles = $request->file('hand_history');
+        $results = [];
 
-        // Dispatch the job
-        ParseHandHistory::dispatch($path, Auth::user());
-        
+        foreach ($uploadedFiles as $file) {
+            $filename = uniqid('hand_') . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('hand_histories', $filename);
+
+            // Dispatch job for each file
+            ParseHandHistory::dispatch($path, Auth::user());
+
+            $results[] = [
+                'filename' => $filename,
+                'path' => $path
+            ];
+        }        
         return response()->json([
             'message' => 'Upload successful',
-            'filename' => $filename,
-            'path' => $path
+            'files' => $results
         ]);
     }
     /**
