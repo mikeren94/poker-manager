@@ -8,12 +8,15 @@ import {
     getCoreRowModel,
     getSortedRowModel,
 } from '@tanstack/react-table';
+import Pagination from "./Pagination";
 
 
 function HandTable({session}) {
     const [hands, setHands] = useState([]);
     const [loading, setLoading] = useState(true);
     const [sorting, setSorting] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [lastPage, setLastPage] = useState(1);
 
     const table = useReactTable({
         data: hands,
@@ -24,10 +27,14 @@ function HandTable({session}) {
         getSortedRowModel: getSortedRowModel(),
     });
 
-    const getHands = async () => {
+    const getHands = async (page = 1) => {
+        setLoading(true);
         try {
-            const response = await axios.get(`/sessions/${session.id}/hands`)
+            const request = await axios.get(`/sessions/${session.id}/hands?page=${page}`)
+            const response = request.data;
             setHands(response.data);
+            setCurrentPage(response.current_page);
+            setLastPage(response.last_page);
         } catch (error) {
             console.log(error)
         } finally {
@@ -43,14 +50,17 @@ function HandTable({session}) {
             {loading ? (
                 <LoadingSpinner message="loading..." />
             ) : hands.length > 0 ? (
-                <table className="table-auto w-full">
-                    <TableHeader table={table} />
-                    <tbody>
-                    {table.getRowModel().rows.map(row => (
-                        <HandItem key={row.id} historyItem={row.original} />
-                    ))}
-                    </tbody>
-                </table>
+                <div>
+                    <table className="table-auto w-full text-center">
+                        <TableHeader table={table} />
+                        <tbody>
+                        {table.getRowModel().rows.map(row => (
+                            <HandItem key={row.id} historyItem={row.original} />
+                        ))}
+                        </tbody>
+                    </table>
+                    <Pagination currentPage={currentPage} lastPage={lastPage} updateTable={getHands} />
+                </div>
             ) : (
                 <p>No sessions found</p>
             )}

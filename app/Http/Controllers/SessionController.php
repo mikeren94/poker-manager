@@ -18,9 +18,10 @@ class SessionController extends Controller
     {
         $user = Auth::user();
 
-        $sessions = Session::whereIn('player_id', $user->playerIds)->orderByDesc('start_time')->get();
+        $sessions = Session::whereIn('player_id', $user->playerIds)
+            ->orderByDesc('start_time')
+            ->paginate(env('DEFAULT_PAGINATION'));
 
-        
         return response()->json($sessions);
     }
 
@@ -54,9 +55,9 @@ class SessionController extends Controller
                 'session.player',
                 'session.site',
             ])
-            ->get();
+            ->paginate(env('DEFAULT_PAGINATION'));
 
-        return response()->json($hands);
+         return response()->json($hands);  
     }
     
     /**

@@ -77,9 +77,15 @@ class HandController extends Controller
                     });
                 })->with('card');
             }
-        ])->get();
-    
-        return response()->json($hands);
+        ])->paginate(20);
+            
+        return response()->json([
+            'data' => $hands->items(),
+            'current_page' => $hands->currentPage(),
+            'last_page' => $hands->lastPage(),
+            'per_page' => $hands->perPage(),
+            'total' => $hands->total(),
+        ]);    
     }
 
     /**
