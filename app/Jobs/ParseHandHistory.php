@@ -125,6 +125,8 @@ class ParseHandHistory implements ShouldQueue
         $playerContributions = [];
         $playerCollections = [];
         $uncalledReturns = [];
+        $showdownPlayers = [];
+
         $rake = 0;
 
         $street = 0; // 0 = preflop
@@ -134,7 +136,7 @@ class ParseHandHistory implements ShouldQueue
                 $seatedPlayers[] = $m[1];
             }
 
-            $this->parseLine($line, $hand, $playerContributions, $playerCollections, $uncalledReturns, $rake, $street, $actionOrder);
+            $this->parseLine($line, $hand, $playerContributions, $playerCollections, $uncalledReturns, $rake, $street, $actionOrder, $showdownPlayers);
         }
 
         $this->applyCardsToHand($hand, $lines);
@@ -142,7 +144,6 @@ class ParseHandHistory implements ShouldQueue
         $hand->rake = $rake;
         $hand->pot_size = array_sum($playerCollections);
         $hand->save();
-
         foreach ($seatedPlayers as $name) {
             $player = ($this->heroPlayer->name === $name)
                 ? $this->heroPlayer
@@ -154,12 +155,13 @@ class ParseHandHistory implements ShouldQueue
             $contributed = $playerContributions[$name] ?? 0;
             $collected = $playerCollections[$name] ?? 0;
             $returned = $uncalledReturns[$name] ?? 0;
-
+            
             HandPlayer::updateOrCreate([
                 'hand_id' => $hand->id,
                 'player_id' => $player->id,
             ], [
                 'result' => $collected - $contributed + $returned,
+                'showdown' => in_array($name, $showdownPlayers)
             ]);
         }
 
@@ -281,8 +283,7 @@ class ParseHandHistory implements ShouldQueue
         return null;
     }
 
-    protected function parseLine(string $line, Hand $hand, &$contributions, &$collections, &$returns, &$rake, &$street, &$actionOrder): void  
-    {
+    protected function parseLine(string $line, Hand $hand, &$contributions, &$collections, &$returns, &$rake, &$street, &$actionOrder, &$showdownPlayers): void    {
         if (str_contains($line, '*** FLOP ***')) {
             $street = 1;
         }
@@ -363,6 +364,10 @@ class ParseHandHistory implements ShouldQueue
         }
         if (preg_match('/Rake \$(\d+\.\d+)/', $line, $m)) {
             $rake = (float)$m[1];
+        }
+
+        if (preg_match('/^(\w+): shows \[.*?\]/', $line, $m)) {
+            $showdownPlayers[] = $m[1];
         }
     }
 
