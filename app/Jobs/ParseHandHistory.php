@@ -66,6 +66,17 @@ class ParseHandHistory implements ShouldQueue
         {
             $this->parseHand($handText);
         }
+
+        # Calculate the total session profit
+        $result = HandPlayer::whereHas('hand', function ($query) {
+            $query->where('game_session_id', $this->session->id); // assuming you're inside a Session model
+        })
+        ->whereIn('player_id', $this->user->playerIds)
+        ->where('result', '!=', 0)
+        ->sum('result');
+
+        $this->session->net_profit = $result;
+        $this->session->save();
     }
 
     public function parseHand(string $text): Hand

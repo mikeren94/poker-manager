@@ -24,13 +24,17 @@ function HandTable({session}) {
         state: { sorting },
         onSortingChange: setSorting,
         getCoreRowModel: getCoreRowModel(),
-        getSortedRowModel: getSortedRowModel(),
     });
 
-    const getHands = async (page = 1) => {
+    const getHands = async (page = 1, sort = sorting) => {
+        console.log('updating table');
         setLoading(true);
         try {
-            const request = await axios.get(`/sessions/${session.id}/hands?page=${page}`)
+            const sortParam = sort.length > 0
+                ? `&sort_by=${sort[0].id}&sort_direction=${sort[0].desc ? 'desc' : 'asc'}`
+                : '';
+        
+            const request = await axios.get(`/sessions/${session.id}/hands?page=${page}${sortParam}`);
             const response = request.data;
             setHands(response.data);
             setCurrentPage(response.current_page);
@@ -43,8 +47,8 @@ function HandTable({session}) {
     }
 
     useEffect(() => {
-        getHands();
-    }, []);
+        getHands(currentPage, sorting);
+    }, [sorting]);
     return (
         <div>
             {loading ? (
@@ -59,8 +63,13 @@ function HandTable({session}) {
                         ))}
                         </tbody>
                     </table>
-                    <Pagination currentPage={currentPage} lastPage={lastPage} updateTable={getHands} />
-                </div>
+                    <Pagination
+                    currentPage={currentPage}
+                    lastPage={lastPage}
+                    updateTable={getHands}
+                    sorting={sorting}
+                    />         
+               </div>
             ) : (
                 <p>No sessions found</p>
             )}

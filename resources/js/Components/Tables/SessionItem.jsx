@@ -16,8 +16,8 @@ function SessionItem({session}) {
                 {session.start_time}
             </td>
             <td>
-                <span className={`font-bold font-mono text-base ${session.result > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                    {session.result}
+                <span className={`font-bold font-mono text-base ${session.net_profit > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                    {session.net_profit}
                 </span>                
                 {}
             </td>

@@ -23,27 +23,31 @@ function SessionTable() {
         state: { sorting },
         onSortingChange: setSorting,
         getCoreRowModel: getCoreRowModel(),
-        getSortedRowModel: getSortedRowModel(),
     });
 
-    const getSessions = async (page = 1) => {
+    const getSessions = async (page = 1, sort = sorting) => {
         setLoading(true);
         try {
-            const request = await axios.get(`/sessions?page=${page}`)
+            const sortParam = sort.length > 0
+            ? `&sort_by=${sort[0].id}&sort_direction=${sort[0].desc ? 'desc' : 'asc'}`
+            : '';
+
+            const request = await axios.get(`/sessions?page=${page}${sortParam}`);
             const response = request.data;
+
             setCurrentPage(response.current_page);
             setLastPage(response.last_page);
-            setSessions(response.data)
+            setSessions(response.data);
         } catch (error) {
-            console.log(error)
+            console.log(error);
         } finally {
             setLoading(false);
         }
-    }
+    };
 
     useEffect(() => {
-        getSessions();
-    }, []);
+        getSessions(1, sorting); // reset to page 1 on sort change
+    }, [sorting]);
     
     return (
         <div>
@@ -59,7 +63,12 @@ function SessionTable() {
                         ))}
                         </tbody>
                     </table>
-                    <Pagination currentPage={currentPage} lastPage={lastPage} updateTable={getSessions} />
+                    <Pagination
+                        currentPage={currentPage}
+                        lastPage={lastPage}
+                        updateTable={(page) => getSessions(page, sorting)}
+                        sorting={sorting}
+                    />
                 </div>
             ) : (
                 <p>No sessions found</p>

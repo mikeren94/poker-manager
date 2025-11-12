@@ -17,31 +17,40 @@ class SessionController extends Controller
     public function index()
     {
         $user = Auth::user();
+        $sortBy = request()->query('sort_by', 'start_time');
+        $sortDirection = request()->query('sort_direction', 'desc');
+
+        // Whitelist allowed sort fields
+        $allowedSorts = ['start_time', 'duration', 'bb_size', 'site_id', 'net_profit'];
+        if (!in_array($sortBy, $allowedSorts)) {
+            $sortBy = 'start_time';
+        }
 
         $sessions = Session::whereIn('player_id', $user->playerIds)
-            ->orderByDesc('start_time')
-            ->paginate(env('DEFAULT_PAGINATION'));
+            ->orderBy($sortBy, $sortDirection)
+            ->paginate(env('DEFAULT_PAGINATION', 20));
 
         return response()->json($sessions);
     }
 
     public function list(Session $session)
     {
+        $sortBy = request()->query('sort_by', 'timestamp');
+        $sortDirection = request()->query('sort_direction', 'desc');  
         $user = Auth::user();
-        $hands = $session
-            ->hands()
+
+        $query = $session->hands()
             ->whereHas('hand_players', function ($query) use ($user) {
                 $query->whereHas('player', function ($q) use ($user) {
                     $q->where('user_id', $user->id);
-                })->where('result', '!=', 0); // Filter hands by result
+                })->where('result', '!=', 0);
             })
             ->with([
                 'hand_cards' => function ($query) use ($user) {
                     $query->where(function ($q) use ($user) {
                         $q->whereHas('player', function ($sub) use ($user) {
                             $sub->where('user_id', $user->id);
-                        })
-                        ->orWhere(function ($sub) {
+                        })->orWhere(function ($sub) {
                             $sub->whereNull('player_id')
                                 ->whereIn('context', ['flop', 'turn', 'river']);
                         });
@@ -50,16 +59,24 @@ class SessionController extends Controller
                 'hand_players' => function ($query) use ($user) {
                     $query->whereHas('player', function ($q) use ($user) {
                         $q->where('user_id', $user->id);
-                    })->where('result', '!=', 0); // Only load relevant hand_players
+                    })->where('result', '!=', 0);
                 },
                 'session.player',
                 'session.site',
-            ])
-            ->paginate(env('DEFAULT_PAGINATION'));
+            ]);
 
-         return response()->json($hands);  
-    }
-    
+        if ($sortBy === 'result') {
+            $query->join('hand_players', 'hand_players.hand_id', '=', 'hands.id')
+                ->whereIn('hand_players.player_id', $user->playerIds) // or however you get hero
+                ->orderBy('hand_players.result', $sortDirection)
+                ->select('hands.*'); // avoid duplicate columns
+        } else {
+            $query->orderBy($sortBy, $sortDirection);
+        }
+
+        $hands = $query->paginate(env('DEFAULT_PAGINATION'));
+        return response()->json($hands);
+    }    
     /**
      * Show the form for creating a new resource.
      */

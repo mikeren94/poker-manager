@@ -93,7 +93,7 @@ export const sessionColumns = [
   columnHelper.accessor(
     row => row.result ?? 0,
     {
-      id: 'result',
+      id: 'net_profit',
       header: 'Result',
       enableSorting: true,
       cell: info => {
@@ -106,8 +106,8 @@ export const sessionColumns = [
         );
       },
       sortingFn: (rowA, rowB) => {
-        const resultA = rowA.original.result ?? 0;
-        const resultB = rowB.original.result ?? 0;
+        const resultA = rowA.original.net_profit ?? 0;
+        const resultB = rowB.original.net_profit ?? 0;
         return resultA - resultB; // ✅ correct direction
       },
     }

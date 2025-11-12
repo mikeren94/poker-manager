@@ -1,10 +1,10 @@
-function Pagination({ currentPage, lastPage, updateTable }) {
+function Pagination({ currentPage, lastPage, updateTable, sorting }) {
     return (
         <div className="flex justify-center gap-2 mt-4">
             <button
                 className="btn btn-sm"
                 disabled={currentPage === 1}
-                onClick={() => updateTable(currentPage - 1)}
+                onClick={() => updateTable(currentPage - 1, sorting)}
             >
                 Prev
             </button>
@@ -12,7 +12,7 @@ function Pagination({ currentPage, lastPage, updateTable }) {
             <button
                 className="btn btn-sm"
                 disabled={currentPage === lastPage}
-                onClick={() => updateTable(currentPage + 1)}
+                onClick={() => updateTable(currentPage + 1, sorting)}
             >
                 Next
             </button>

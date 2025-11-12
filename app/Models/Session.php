@@ -24,8 +24,6 @@ class Session extends Model
         'net_profit'
     ];
 
-    protected $appends = ['result'];
-
     public function player()
     {
         return $this->belongsTo(Player::class);
@@ -39,15 +37,5 @@ class Session extends Model
     public function site()
     {
         return $this->belongsTo(Site::class);
-    }
-
-    public function getResultAttribute()
-    {
-        return HandPlayer::whereHas('hand', function ($query) {
-            $query->where('game_session_id', $this->id); // assuming you're inside a Session model
-        })
-        ->where('player_id', $this->player_id)
-        ->where('result', '!=', 0)
-        ->sum('result');
     }
 }
