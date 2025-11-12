@@ -127,9 +127,21 @@ class User extends Authenticatable
         // $totalHandCount = $allActions->pluck('hand_id')->unique()->count();
         // return $totalHandCount > 0 ? round(($vpipHandCount / $totalHandCount) * 100) : 0;
 
-        $contributingActions = HandPlayer::select('hand_id')
+        // $contributingActions = HandPlayer::select('hand_id')
+        //     ->whereIn('player_id', $this->playerIds)
+        //     ->where('result', '!=', 0)
+        //     ->groupBy('hand_id')
+        //     ->get();
+
+        // $allHands = HandPlayer::select('hand_id')
+        //     ->whereIn('player_id', $this->playerIds)
+        //     ->groupBy('hand_id')
+        //     ->get();
+
+        $contributingActions = HandAction::select('hand_id')
             ->whereIn('player_id', $this->playerIds)
-            ->where('result', '!=', 0)
+            ->where('street', 0)
+            ->whereIn('action', ['calls', 'bets', 'raises'])
             ->groupBy('hand_id')
             ->get();
 
@@ -137,6 +149,7 @@ class User extends Authenticatable
             ->whereIn('player_id', $this->playerIds)
             ->groupBy('hand_id')
             ->get();
+
         $totalHandCount = $allHands->count();
         $vpipHandCount = $contributingActions->count();
         return $totalHandCount > 0 ? round(($vpipHandCount / $totalHandCount) * 100) : 0;
