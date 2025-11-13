@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
 class HandController extends Controller
 {
     /**
@@ -26,18 +27,23 @@ class HandController extends Controller
         $uploadedFiles = $request->file('hand_history');
         $results = [];
 
+        // First pass: validate all files
         foreach ($uploadedFiles as $file) {
             $text = file_get_contents($file->getRealPath());
 
             if (!$this->validatePokerStarsCashGame($text)) {
                 throw ValidationException::withMessages([
-                    'hand_history' => 'Only PokerStars cash game hand histories are supported.',
+                    'hand_history' => 'All files must be PokerStars cash game hand histories.',
                 ]);
             }
+        }
 
+        // Second pass: store and dispatch
+        foreach ($uploadedFiles as $file) {
             $filename = uniqid('hand_') . '.' . $file->getClientOriginalExtension();
             $path = $file->storeAs('hand_histories', $filename);
 
+            Log::info("Dispatching ParseHandHistory for file: {$filename}");
             ParseHandHistory::dispatch($path, Auth::user());
 
             $results[] = [
@@ -50,14 +56,20 @@ class HandController extends Controller
             'message' => 'Upload successful',
             'files' => $results
         ]);
-
     }
 
-    protected function validatePokerStarsCashGame(string $text): bool 
+    protected function validatePokerStarsCashGame(string $text): bool
     {
-        // PokerStars cash games usually start with something like:
-        // "PokerStars Hand #1234567890:  Hold'em No Limit ($0.05/$0.10 USD)"
-        return preg_match('/^PokerStars Hand #[0-9]+:.*Hold\'em.*(No Limit|Pot Limit)/', $text);
+        // Must contain a cash game header
+        $isCashGame = preg_match(
+            '/^PokerStars Hand #[0-9]+: +Hold\'em (No Limit|Pot Limit) +\(\$\d+\.\d{2}\/\$\d+\.\d{2} USD\)/m',
+            $text
+        );
+
+        // Must NOT contain the word "Tournament" in the header
+        $isTournament = preg_match('/^PokerStars Hand #[0-9]+: +Tournament/m', $text);
+
+        return $isCashGame && !$isTournament;
     }
 
     /**

@@ -6,8 +6,6 @@ RUN apt-get update && apt-get install -y \
 
 COPY . /var/www/html
 WORKDIR /var/www/html
-RUN rm -rf /var/www/html/index.php
-RUN ln -s public /var/www/html/html
 # Install composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
