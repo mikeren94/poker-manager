@@ -10,7 +10,7 @@ use App\Jobs\ParseHandHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
-
+use Illuminate\Validation\ValidationException;
 class HandController extends Controller
 {
     /**
@@ -27,22 +27,39 @@ class HandController extends Controller
         $results = [];
 
         foreach ($uploadedFiles as $file) {
+            $text = file_get_contents($file->getRealPath());
+
+            if (!$this->validatePokerStarsCashGame($text)) {
+                throw ValidationException::withMessages([
+                    'hand_history' => 'Only PokerStars cash game hand histories are supported.',
+                ]);
+            }
+
             $filename = uniqid('hand_') . '.' . $file->getClientOriginalExtension();
             $path = $file->storeAs('hand_histories', $filename);
 
-            // Dispatch job for each file
             ParseHandHistory::dispatch($path, Auth::user());
 
             $results[] = [
                 'filename' => $filename,
                 'path' => $path
             ];
-        }        
+        }
+
         return response()->json([
             'message' => 'Upload successful',
             'files' => $results
         ]);
+
     }
+
+    protected function validatePokerStarsCashGame(string $text): bool 
+    {
+        // PokerStars cash games usually start with something like:
+        // "PokerStars Hand #1234567890:  Hold'em No Limit ($0.05/$0.10 USD)"
+        return preg_match('/^PokerStars Hand #[0-9]+:.*Hold\'em.*(No Limit|Pot Limit)/', $text);
+    }
+
     /**
      * Display a listing of the resource.
      */
