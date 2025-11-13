@@ -1,7 +1,8 @@
 import HandHistoryUpload from '@/Components/HandHistoryUpload';
+import Notice from '@/Components/Notice';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
-
+import { DisplayText } from '@/Constants/displayText';
 export default function Dashboard() {
     return (
         <AuthenticatedLayout
@@ -17,7 +18,7 @@ export default function Dashboard() {
                 <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         <div className="p-6 text-gray-900">
-                            You're logged in!
+                            <Notice message={DisplayText.handHistoryNotice} />
                             <HandHistoryUpload />
                         </div>
                     </div>

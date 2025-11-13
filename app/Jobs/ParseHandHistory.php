@@ -125,14 +125,18 @@ class ParseHandHistory implements ShouldQueue
         $bbSize = $this->extractBbSize($text);
 
         
-        $hand = Hand::firstOrCreate([
-            'game_session_id' => $this->session->id,
-            'hand_number' => $this->extractHandNumber($lines),
-            'timestamp' => $this->extractTimestamp($lines),
-            'raw_text' => $text,
-            'bb_size' => $bbSize,
-        ]);
-
+        $hand = Hand::firstOrCreate(
+            [
+                'game_session_id' => $this->session->id,
+                'hand_number' => $this->extractHandNumber($lines),
+            ],
+            [
+                'timestamp' => $this->extractTimestamp($lines),
+                'raw_text' => $text,
+                'bb_size' => $bbSize,
+            ]
+        );
+        
         $playerContributions = [];
         $playerCollections = [];
         $uncalledReturns = [];
