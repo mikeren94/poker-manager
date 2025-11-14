@@ -1,7 +1,7 @@
-node_modules
-vendor
-storage
-public/storage
-.env
-.git
+src/node_modules
+src/vendor
+src/storage
+src/public/storage
+src/.env
+src/.git
 *.log

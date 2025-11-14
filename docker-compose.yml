@@ -2,12 +2,14 @@ version: '3.8'
 
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     ports:
       - "8000:80"
     volumes:
-      - .:/var/www/html
-      - ./storage:/var/www/html/storage
+      - ./src:/var/www/html
+      - ./src/storage:/var/www/html/storage
     depends_on:
       - db
     environment:
@@ -22,7 +24,9 @@ services:
       MYSQL_DATABASE: testdb
 
   worker:
-    build: .
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     volumes:
       - .:/var/www/html
       - ./storage:/var/www/html/storage
@@ -30,5 +34,5 @@ services:
     depends_on:
       - db
     command: >
-      sh -c "wait-for-it db:3307 -- php artisan queue:work --sleep=3 --tries=3"    environment:
+      sh -c "wait-for-it db:3307 -- php src/artisan queue:work --sleep=3 --tries=3"    environment:
       QUEUE_CONNECTION: database
