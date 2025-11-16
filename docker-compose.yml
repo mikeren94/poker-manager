@@ -23,16 +23,31 @@ services:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: testdb
 
+  migrator:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ./src:/var/www/html
+      - ./src/storage:/var/www/html/storage
+      - ./.env:/var/www/html/src/.env
+    depends_on:
+      - db
+    command: >
+      sh -c "until php artisan migrate --force --seed; do echo 'Waiting for DB...'; sleep 2; done"
+
   worker:
     build:
       context: .
       dockerfile: docker/Dockerfile
     volumes:
-      - .:/var/www/html
-      - ./storage:/var/www/html/storage
-      - ./.env:/var/www/html/.env
+      - ./src:/var/www/html
+      - ./src/storage:/var/www/html/storage
+      - ./.env:/var/www/html/src/.env
     depends_on:
       - db
+      - migrator
     command: >
-      sh -c "wait-for-it db:3307 -- php src/artisan queue:work --sleep=3 --tries=3"    environment:
+      sh -c "until php artisan migrate:status | grep 'create_jobs_table'; do echo '⏳ Waiting for migrations...'; sleep 2; done && echo '✅ Migrations confirmed' && php artisan queue:work database --sleep=3 --tries=3"
+    environment:
       QUEUE_CONNECTION: database

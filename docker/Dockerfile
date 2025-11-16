@@ -23,6 +23,4 @@ RUN echo "<Directory /var/www/html/public>\n\
 RUN a2enmod rewrite
 RUN sed -i 's|AllowOverride None|AllowOverride All|' /etc/apache2/apache2.conf
 
-COPY wait-for-it.sh /usr/local/bin/wait-for-it
-RUN chmod +x /usr/local/bin/wait-for-it
 EXPOSE 80

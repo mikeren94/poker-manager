@@ -382,7 +382,10 @@ class ParseHandHistory implements ShouldQueue
             'posts'  => '/posts (?:small|big) blind \$([\d\.]+)/',
             'folds'  => '/folds/',
             'checks' => '/checks/',
+            'shows'  => '/shows \[([^\]]+)\]/',       // captures the cards shown
+            'mucks'  => '/mucks hand/',               // no amount or cards
         ];
+
 
         foreach ($patterns as $action => $regex) {
             if (str_contains($line, $action)) {
