@@ -28,7 +28,7 @@ function ResponseMessage({ response }) {
     }
 
   return (
-    <div className={`border rounded-md p-4 mb-4 ${bg} ${border} ${text}`}>
+    <div className={`response-container border rounded-md p-4 mb-4 ${bg} ${border} ${text}`}>
       <h3 className="font-semibold text-lg mb-1">{heading}</h3>
       <p className="mb-2">{response.message}</p>
 

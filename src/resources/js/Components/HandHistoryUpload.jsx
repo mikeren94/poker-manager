@@ -66,7 +66,7 @@ function HandHistoryUpload() {
                 ref={fileInputRef} 
             />
             <button 
-                className="btn btn-blue" 
+                className="btn btn-blue ml-2" 
                 type="submit"
                 disabled={loading}
             >{loading ? 'Uploading...' : 'Upload'}</button>

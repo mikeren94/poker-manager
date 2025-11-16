@@ -25,7 +25,7 @@ ChartJS.register(
   Filler
 );
 
-export const defaultChartOptions = {
+export const getChartOptions = (isDark = false) => ({
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
@@ -33,7 +33,7 @@ export const defaultChartOptions = {
       display: true,
       position: 'top',
       labels: {
-        color: '#333',
+        color: isDark ? '#f3f4f6' : '#333', // gray-100 vs gray-800
         font: { size: 12 }
       }
     },
@@ -60,7 +60,7 @@ export const defaultChartOptions = {
       ticks: {
         autoSkip: true,
         maxTicksLimit: 10,
-        color: '#666'
+        color: isDark ? '#f3f4f6' : '#666' // gray-100 vs gray-600
       },
       grid: {
         display: false
@@ -70,11 +70,11 @@ export const defaultChartOptions = {
       beginAtZero: true,
       ticks: {
         callback: value => `$${Number(value).toFixed(2)}`,
-        color: '#666'
+        color: isDark ? '#f3f4f6' : '#666'
       },
       grid: {
-        color: '#eee'
+        color: isDark ? 'rgba(75, 85, 99, 0.2)' : '#eee' // gray-600 vs light
       }
     }
   }
-};
+});
