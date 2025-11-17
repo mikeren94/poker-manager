@@ -87,17 +87,18 @@ class HandController extends Controller
 
     protected function validatePokerStarsCashGame(string $text): bool
     {
-        // Must contain a cash game header
+        // Match both regular and Zoom cash game headers
         $isCashGame = preg_match(
-            '/^PokerStars Hand #[0-9]+: +Hold\'em (No Limit|Pot Limit) +\(\$\d+\.\d{2}\/\$\d+\.\d{2} USD\)/m',
+            '/PokerStars\s+(Zoom\s+)?Hand\s+#\d+:.*Hold\'em\s+(No Limit|Pot Limit)\s+\(\$\d+\.\d{2}\/\$\d+\.\d{2}(?:\s+USD)?\)/i',
             $text
         );
 
-        // Must NOT contain the word "Tournament" in the header
-        $isTournament = preg_match('/^PokerStars Hand #[0-9]+: +Tournament/m', $text);
+        // Exclude tournaments
+        $isTournament = preg_match('/PokerStars\s+(Zoom\s+)?Hand\s+#\d+:\s+Tournament/i', $text);
 
         return $isCashGame && !$isTournament;
     }
+
 
     protected function extractZipAndProcess(UploadedFile $zipFile, array &$successful, array &$failed)
     {

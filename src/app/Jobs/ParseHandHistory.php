@@ -77,7 +77,7 @@ class ParseHandHistory implements ShouldQueue
             'preview' => substr($content, 0, 200),
         ]);
 
-        $hands = array_filter(preg_split('/(?=PokerStars Hand #\d+)/', $content));
+        $hands = array_filter(preg_split('/(?=PokerStars (Zoom )?Hand #\d+)/', $content));
         Log::info('🧩 Split into individual hands', ['count' => count($hands)]);
 
         $this->site = Site::firstOrCreate(['name' => 'PokerStars']);
@@ -126,25 +126,24 @@ class ParseHandHistory implements ShouldQueue
             'hero' => $this->heroPlayer->name ?? 'null',
         ]);
 
-
-
         // If the session doesn't exist yet, create it
-        if(!$this->session) {
+        if (!$this->session) {
             $firstLine = collect($lines)->first(fn($line) => trim($line) !== '');
-            // Extract stakes from first line
-            preg_match('/\((\$[\d\.]+\/\$[\d\.]+) USD\)/', $firstLine, $stakesMatch);
+
+            // Match stakes with or without "USD"
+            preg_match('/\((\$[\d\.]+\/\$[\d\.]+)(?: USD)?\)/', $firstLine, $stakesMatch);
             $stakes = $stakesMatch[1] ?? null;
 
-            // Extract table name from second line
-            $secondLine = $lines[1] ?? '';
-            preg_match("/Table '([^']+)'/", $secondLine, $tableMatch);
+            // Find the first line that contains a table name
+            $tableLine = collect($lines)->first(fn($line) => str_contains($line, "Table '"));
+            preg_match("/Table '([^']+)'/", $tableLine ?? '', $tableMatch);
             $tableName = $tableMatch[1] ?? null;
 
             // Combine to form session ID
             $sessionId = $tableName && $stakes ? "{$tableName} ({$stakes})" : null;
 
+            // Extract timestamp
             preg_match('/\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}/', $firstLine, $match);
-
             $rawTimestamp = $match[0] ?? null;
 
             $startTime = $rawTimestamp
@@ -339,7 +338,7 @@ class ParseHandHistory implements ShouldQueue
     protected function extractHandNumber(array $lines): ?string
     {
         foreach ($lines as $line) {
-            if (preg_match('/PokerStars Hand #(\d+):/', $line, $m)) {
+            if (preg_match('/PokerStars (?:Zoom )?Hand #(\d+):/', $line, $m)) {
                 return $m[1];
             }
         }
