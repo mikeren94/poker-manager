@@ -409,6 +409,10 @@ class ParseHandHistory implements ShouldQueue
                     $playerModel = $this->heroPlayer;
                 }
 
+                if ($action === 'shows' && isset($m[1])) {
+                    $action .= ' [' . $m[1] . ']'; // e.g. "shows [Ah Ad]"
+                }
+
                 HandAction::create([
                     'hand_id' => $hand->id,
                     'player_id' => $playerModel->id,
