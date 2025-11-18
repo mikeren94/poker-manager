@@ -8,7 +8,8 @@ function ProfitChart() {
     const isDark = React.useContext(ThemeContext);
     const [chartData, setChartData] = useState(null);
     const [chartOptions, setChartOptions] = useState(null);
-    useEffect(() => {
+
+    const buildChart = () => {
         axios.get('/charts/profit-over-time').then(res => {
         const labels = res.data.map(d => d.date);
         const profits = res.data.map(d => d.profit);
@@ -31,7 +32,7 @@ function ProfitChart() {
         }
         setChartData(data);
         });
-    });
+    };
 
     useEffect(() => {
         if (!chartData) return;
@@ -53,8 +54,9 @@ function ProfitChart() {
         };
 
         setChartOptions(mergedOptions);
-
     }, [isDark, chartData]);
+
+    buildChart();
     return (
         <div className="bg-white shadow rounded-lg p-4 w-full">
         {chartData && chartOptions ? (

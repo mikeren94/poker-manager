@@ -48,7 +48,12 @@ export default function AuthenticatedLayout({ header, children }) {
                                     >
                                         Upload Hand History
                                     </NavLink>
-
+                                    <NavLink
+                                        href={route('feedback')}
+                                        active={route().current('feedback')}
+                                    >
+                                        Feedback
+                                    </NavLink>
                                 </div>
                             </div>
 
@@ -166,6 +171,12 @@ export default function AuthenticatedLayout({ header, children }) {
                                 active={route().current('upload')}
                             >
                                 Upload Hand History
+                            </ResponsiveNavLink>
+                            <ResponsiveNavLink
+                                href={route('feedback')}
+                                active={route().current('feedback')}
+                            >
+                                Feedback
                             </ResponsiveNavLink>
                         </div>
 

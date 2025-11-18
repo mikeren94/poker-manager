@@ -4,7 +4,9 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\HandController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ChartController;
+use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\SessionController;
+use App\Models\Feedback;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -19,6 +21,9 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::get('/feedback', [FeedbackController::class, 'index'])->middleware(['auth', 'verified'])->name('feedback');
+Route::post('/feedback', [FeedbackController::class, 'store'])->middleware(['auth', 'verified'])->name('feedback.store');
 
 Route::get('/upload', function() {
     return Inertia::render('UploadHistory');

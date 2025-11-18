@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
-import ResponseMessage from "./ResponseMessage";
+import ResponseMessage from "./HistoryUploadResponseMessage";
 import LoadingSpinner from "./LoadingSpinner";
-import { DisplayText } from "@/Constants/displayText";
+import { uploadInstructions } from "@/Constants/displayText";
 function HandHistoryUpload() {
     const [files, setFiles] = useState([]);
     const fileInputRef = useRef(null);
@@ -51,7 +51,7 @@ function HandHistoryUpload() {
                 }}
                 className="border-2 border-dashed border-gray-400 p-4 mb-4 text-center cursor-pointer"
             >
-            {DisplayText.uploadInstructions}
+            {uploadInstructions}
             </div>
             <ul className="mb-2">
             {files.map((file, i) => (

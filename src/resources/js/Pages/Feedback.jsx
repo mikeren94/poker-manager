@@ -1,25 +1,30 @@
-import HandHistoryUpload from '@/Components/HandHistoryUpload';
-import Notice from '@/Components/Notice';
+import { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
-import {handHistoryNotice} from '@/Constants/displayText';
-export default function Dashboard() {
+import FeedbackForm from '@/Components/Forms/FeedbackForm';
+
+export default function Feedback() {
+
+    const [feedback, setFeedback] = useState('');
+
+    const handleSubmit = async (e) => {
+        console.log('Submitting feedback:', feedback);
+    }
+    
     return (
         <AuthenticatedLayout
             header={
                 <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Upload Hand History
+                    Feedback
                 </h2>
             }
         >
-            <Head title="Upload Hand History" />
-
+            <Head title="Feedback" />
             <div className="py-12">
                 <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                         <div className="p-6 text-gray-900">
-                            <Notice message={handHistoryNotice} />
-                            <HandHistoryUpload />
+                            <FeedbackForm />
                         </div>
                     </div>
                 </div>
