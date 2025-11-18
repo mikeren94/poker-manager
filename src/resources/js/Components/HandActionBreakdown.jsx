@@ -7,7 +7,7 @@ function HandActionBreakdown({ hand }) {
         2: "Turn",
         3: "River",
     };
-    console.log(hand);
+
     // Group actions by street
     const actionsByStreet = hand.hand_actions.reduce((acc, action) => {
         const street = action.street;
@@ -15,8 +15,6 @@ function HandActionBreakdown({ hand }) {
         acc[street].push(action);
         return acc;
     }, {});
-
-    console.log(actionsByStreet);
 
     // Sort each street's actions
     Object.keys(actionsByStreet).forEach(street => {

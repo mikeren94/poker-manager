@@ -9,9 +9,6 @@ function SessionItem({session}) {
             <td>
                 {session.session_id}
             </td>
-            <td>          
-                {session.type}
-            </td>
             <td>
                 {session.start_time}
             </td>

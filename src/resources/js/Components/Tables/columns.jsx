@@ -78,18 +78,14 @@ export const handColumns = [
 ];
 
 export const sessionColumns = [
-    columnHelper.accessor('session_id', {
-        header: 'Session',
-        cell: info => info.getValue(),
-    }),
-    columnHelper.accessor('stakes', {
-        header: 'Stakes',
-        cell: info => info.getValue(),
-    }),
-    columnHelper.accessor('start_time', {
-        header: 'Time',
-        cell: info => new Date(info.getValue()).toLocaleString(),
-    }),
+  columnHelper.accessor('session_id', {
+      header: 'Session',
+      cell: info => info.getValue(),
+  }),
+  columnHelper.accessor('start_time', {
+      header: 'Start Time',
+      cell: info => new Date(info.getValue()).toLocaleString(),
+  }),
   columnHelper.accessor(
     row => row.result ?? 0,
     {
@@ -112,4 +108,25 @@ export const sessionColumns = [
       },
     }
   ),
+];
+
+export const feedbackColumns = [
+  columnHelper.accessor('message', {
+    header: 'Message',
+    cell: info => (
+      <div className="max-w-xs truncate" title={info.getValue()}>
+        {info.getValue()}
+      </div>
+    ),
+  }),
+  columnHelper.accessor('created_at', {
+    header: 'Submitted',
+    cell: info => new Date(info.getValue()).toLocaleString(),
+    enableSorting: true,
+    sortingFn: (rowA, rowB) => {
+      const a = new Date(rowA.original.created_at).getTime();
+      const b = new Date(rowB.original.created_at).getTime();
+      return a - b;
+    },
+  }),
 ];

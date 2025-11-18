@@ -12,7 +12,6 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 
 export default function Dashboard({summary, isDark}) {
-    console.log('isDark in Dashboard:', isDark);
     return (
         <AuthenticatedLayout
             header={

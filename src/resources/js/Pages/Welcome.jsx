@@ -16,6 +16,9 @@ export default function Welcome({ auth, laravelVersion, phpVersion }) {
                     </h1>
                     <p className="text-lg text-black/60 dark:text-white/60 mb-8">
                         Log your hands, review your play, and start building your poker history.
+                        <br/><br/>
+                        This application is in active development, currently only PokerStars cash games are supported.
+                        More features and sites will be added over time.
                     </p>
 
                     <div className="flex justify-center gap-4">

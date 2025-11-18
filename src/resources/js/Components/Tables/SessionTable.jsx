@@ -39,7 +39,6 @@ function SessionTable() {
             setLastPage(response.last_page);
             setSessions(response.data);
         } catch (error) {
-            console.log(error);
         } finally {
             setLoading(false);
         }

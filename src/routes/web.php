@@ -24,6 +24,9 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['au
 
 Route::get('/feedback', [FeedbackController::class, 'index'])->middleware(['auth', 'verified'])->name('feedback');
 Route::post('/feedback', [FeedbackController::class, 'store'])->middleware(['auth', 'verified'])->name('feedback.store');
+Route::get('/feedback/{user}', [FeedbackController::class, 'list'])->middleware('auth');
+Route::get('/feedback/{user}/{feedback}', [FeedbackController::class, 'show'])->middleware(['auth', 'verified'])->name('feedback.show');
+Route::post('/feedback/{feedback}/reply', [FeedbackController::class, 'reply'])->middleware(['auth', 'verified'])->name('feedback.reply');
 
 Route::get('/upload', function() {
     return Inertia::render('UploadHistory');

@@ -10,7 +10,6 @@ function HandHistoryList() {
             const response = await axios.get('/hands')
             setHandHistories(response.data);
         } catch (error) {
-            console.log(error)
         } finally {
             setLoading(false);
         }

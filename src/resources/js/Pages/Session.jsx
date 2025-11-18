@@ -4,7 +4,6 @@ import { Head } from '@inertiajs/react';
 
 
 export default function Session({session}) {
-    console.log(session);
     return (
         <AuthenticatedLayout
             header={

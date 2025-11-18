@@ -9,6 +9,9 @@ function ProfitChart() {
     const [chartData, setChartData] = useState(null);
     const [chartOptions, setChartOptions] = useState(null);
 
+    useEffect(() => {
+        buildChart();
+    }, []);
     const buildChart = () => {
         axios.get('/charts/profit-over-time').then(res => {
         const labels = res.data.map(d => d.date);

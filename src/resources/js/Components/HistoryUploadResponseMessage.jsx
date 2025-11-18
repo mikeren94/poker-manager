@@ -4,7 +4,6 @@ function ResponseMessage({ response }) {
     const hasSuccesses = Array.isArray(response.successful) && response.successful.length > 0;
     const hasFailures = Array.isArray(response.failed) && response.failed.length > 0;
     
-    console.log(hasSuccesses, hasFailures);
     let bg = 'bg-gray-50';
     let border = 'border-gray-300';
     let text = 'text-gray-800';

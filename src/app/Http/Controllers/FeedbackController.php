@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Feedback;
+use App\Models\User;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreFeedbackRequest;
 use App\Http\Requests\UpdateFeedbackRequest;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Auth;
 
 class FeedbackController extends Controller
 {
@@ -15,7 +17,44 @@ class FeedbackController extends Controller
      */
     public function index()
     {
-        return Inertia::render('Feedback');
+        $userId = Auth::id();
+        $userFeedbackCount = Feedback::where('user_id', $userId)->count();
+
+        return Inertia::render('Feedback', [
+            'userId' => $userId,
+            'feedbackCount' => $userFeedbackCount,
+        ]);
+    }
+
+    public function list($userId)
+    {
+        $feedback = Feedback::where('user_id', $userId)
+            ->with('replies')
+            ->with('user:id,name')
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        return response()->json($feedback);
+    }
+
+    public function reply(StoreFeedbackRequest $request, Feedback $feedback)
+    {
+        try {
+            $reply = $feedback->replies()->create([
+                'user_id' => $request->user()->id,
+                'message' => $request->input('message'),
+            ]);
+
+            return response()->json([
+                'message' => 'Reply submitted successfully.',
+                'success' => true,
+            ]);   
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'success' => false,
+            ], 500);
+        }
     }
 
     /**
@@ -52,9 +91,15 @@ class FeedbackController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Feedback $feedback)
+    public function show(User $user, Feedback $feedback)
     {
-        //
+        return Inertia::render('FeedbackThread', [
+            'userId' => Auth::id(),
+            'feedback' => $feedback->with([
+                'user:id,name',
+                'replies.user:id,name'
+            ])->find($feedback->id),        
+        ]);
     }
 
     /**

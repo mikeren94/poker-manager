@@ -27,7 +27,6 @@ function HandTable({session}) {
     });
 
     const getHands = async (page = 1, sort = sorting) => {
-        console.log('updating table');
         setLoading(true);
         try {
             const sortParam = sort.length > 0
@@ -40,7 +39,6 @@ function HandTable({session}) {
             setCurrentPage(response.current_page);
             setLastPage(response.last_page);
         } catch (error) {
-            console.log(error)
         } finally {
             setLoading(false);
         }
