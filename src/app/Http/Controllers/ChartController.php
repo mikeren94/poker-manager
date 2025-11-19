@@ -14,28 +14,33 @@ class ChartController extends Controller
     public function profitChartData(Request $request)
     {
         $profitData = $this->profitOverTime($request);
-        $showdownData = $this->wonAtShowdownOverTime($request);
+        $showdownData  = $this->cumulativeWonOverTime($request, true);
+        $nonShowdownData  = $this->cumulativeWonOverTime($request, false);
 
         // Index showdown data by date
         $showdownMap = collect($showdownData)->keyBy('date');
+        $nonShowdownMap = collect($nonShowdownData)->keyBy('date');
 
-        // Track last known showdown value
-        $lastShowdownValue = 0;
+        $lastShowdown = 0;
+        $lastNonShowdown = 0;
 
-        $merged = collect($profitData)->map(function ($entry) use ($showdownMap, &$lastShowdownValue) {
+        $merged = collect($profitData)->map(function ($entry) use ($showdownMap, $nonShowdownMap, &$lastShowdown, &$lastNonShowdown) {
             if (isset($showdownMap[$entry['date']])) {
-                $lastShowdownValue = $showdownMap[$entry['date']]['won_at_showdown'];
+                $lastShowdown = $showdownMap[$entry['date']]['won_at_showdown'];
+            }
+            if (isset($nonShowdownMap[$entry['date']])) {
+                $lastNonShowdown = $nonShowdownMap[$entry['date']]['won_without_showdown'];
             }
 
             return [
                 'date' => $entry['date'],
                 'profit' => $entry['profit'],
-                'won_at_showdown' => $lastShowdownValue,
+                'won_at_showdown' => $lastShowdown,
+                'won_without_showdown' => $lastNonShowdown,
             ];
         });
 
         return response()->json($merged->values());
-
     }
 
 
@@ -68,14 +73,14 @@ class ChartController extends Controller
         return $cumulative;
     }
 
-    public function wonAtShowdownOverTime(Request $request)
+    private function cumulativeWonOverTime(Request $request, bool $showdown)
     {
         $user = $request->user();
         $playerIds = $user->playerIds;
 
         $raw = HandPlayer::whereIn('player_id', $playerIds)
-            ->where('result', '!=', 0) // only hands where player won chips
-            ->where('showdown', true) // only hands that went to showdown
+            ->where('result', '!=', 0)
+            ->where('showdown', $showdown)
             ->join('hands', 'hands.id', '=', 'hand_players.hand_id')
             ->orderBy('hands.timestamp')
             ->select('hand_players.*', 'hands.timestamp')
@@ -92,7 +97,7 @@ class ChartController extends Controller
             $total += $entry['result'];
             $cumulative[] = [
                 'date' => $entry['date'],
-                'won_at_showdown' => round($total, 2),
+                $showdown ? 'won_at_showdown' : 'won_without_showdown' => round($total, 2),
             ];
         }
 
