@@ -39,7 +39,7 @@ Route::get('/sessions', [SessionController::class, 'index'])->middleware('auth')
 Route::get('/sessions/{session}', [SessionController::class, 'show'])->middleware(['auth', 'verified'])->name('session.show');
 Route::get('/sessions/{session}/hands', [SessionController::class, 'list'])->middleware(['auth', 'verified'])->name('session.hands');
 
-Route::get('/charts/profit-over-time', [ChartController::class, 'profitOverTime']);
+Route::get('/charts/profit-chart-data', [ChartController::class, 'profitChartData'])->middleware('auth');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
