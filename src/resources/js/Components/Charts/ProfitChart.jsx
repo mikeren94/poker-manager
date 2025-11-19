@@ -7,9 +7,9 @@ import { ThemeContext } from '@/ThemeContext';
 
 
 function ProfitChart() {
-  const isDark = React.useContext(ThemeContext);
-  const [chartData, setChartData] = useState(null);
-  const [chartOptions, setChartOptions] = useState(null);
+    const isDark = React.useContext(ThemeContext);
+    const [chartData, setChartData] = useState(null);
+    const [chartOptions, setChartOptions] = useState(null);
 
   // Fetch chart data once on mount
   useEffect(() => {
@@ -94,18 +94,19 @@ function ProfitChart() {
       }
     };
 
-    setChartOptions(mergedOptions);
-  }, [isDark, chartData]);
+        setChartOptions(mergedOptions);
+    }, [isDark, chartData]);
 
-  return (
-    <div className="bg-white shadow rounded-lg p-4 w-full">
-      {chartData && chartOptions ? (
-        <Line data={chartData} options={chartOptions} />
-      ) : (
-        <p>Loading chart...</p>
-      )}
-    </div>
-  );
+    buildChart();
+    return (
+        <div className="bg-white shadow rounded-lg p-4 w-full">
+        {chartData && chartOptions ? (
+            <Line data={chartData} options={chartOptions} />
+        ) : (
+            <p>Loading chart...</p>
+        )}
+        </div>
+    );
 }
 
 export default ProfitChart;
