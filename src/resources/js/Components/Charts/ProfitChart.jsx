@@ -13,12 +13,14 @@ function ProfitChart() {
 
   // Fetch chart data once on mount
   useEffect(() => {
+
     const buildChart = async () => {
     const res = await axios.get('/charts/profit-chart-data');
 
     const labels = res.data.map(d => d.date);
     const profits = res.data.map(d => d.profit);
     const wonAtShowdown = res.data.map(d => d.won_at_showdown);
+    const wonWithoutShowdown = res.data.map(d => d.won_without_showdown);
 
     const lastProfit = profits[profits.length - 1];
     const profitColor = lastProfit >= 0 ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)';
@@ -41,6 +43,15 @@ function ProfitChart() {
           data: wonAtShowdown,
           borderColor: 'rgb(59, 130, 246)', // blue-500
           backgroundColor: 'rgba(59, 130, 246, 0.1)', // subtle fill
+          tension: 0.4,
+          fill: false,
+          pointRadius: 0
+        },
+        {
+          label: 'Won without Showdown',
+          data: wonWithoutShowdown,
+          borderColor: 'rgb(245, 158, 11)', // blue-500
+          backgroundColor: 'rgba(245, 158, 11, 0.1)', // subtle fill
           tension: 0.4,
           fill: false,
           pointRadius: 0
@@ -97,7 +108,6 @@ function ProfitChart() {
         setChartOptions(mergedOptions);
     }, [isDark, chartData]);
 
-    buildChart();
     return (
         <div className="bg-white shadow rounded-lg p-4 w-full">
         {chartData && chartOptions ? (
